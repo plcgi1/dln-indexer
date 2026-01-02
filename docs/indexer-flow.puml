@@ -1,0 +1,66 @@
+@startuml
+autonumber
+skinparam Style strictuml
+skinparam SequenceMessageAlignment center
+
+participant "Cron Scheduler" as Cron
+participant "Worker: Discoverer" as Fetcher
+participant "Worker: Processor" as Processor
+database "PostgreSQL" as DB
+participant "Solana RPC" as RPC
+
+== 1. Discovery Phase (infinity loop) ==
+note over Fetcher: Находит новые сигнатуры в сети
+
+Cron -> Fetcher: Trigger Discover
+Fetcher -> DB: Get last_indexed_signature
+DB --> Fetcher: "sig_123..."
+
+Fetcher -> RPC: getSignaturesForAddress (DLN_Program, until: sig_123)
+RPC --> Fetcher: List of [signature, slot]
+
+loop for each signature
+    Fetcher -> DB: INSERT INTO orders (src_signature, status: 'INITIAL') \nON CONFLICT DO NOTHING
+end
+Fetcher -> DB: Update last_indexed_signature
+Fetcher --> Cron: Done
+
+== 2. Processing Phase (Every 10s) ==
+note over Processor: Превращает сигнатуры в данные ордеров
+
+Cron -> Processor: Trigger Process
+Processor -> DB: SELECT orders WHERE status IN ('INITIAL', 'srcDlnGot', 'dstDlnGot') LIMIT 50
+DB --> Processor: [Order_Rows]
+
+loop for each Order row
+    alt If raw_data is NULL
+        Processor -> RPC: getTransaction (signature)
+
+        alt RPC Success
+            Processor -> DB: UPDATE status = 'srcDlnGot', raw_data = ...
+            Processor -> DB: INSERT INTO execution_logs (success)
+        else RPC Error (Rate limit/Timeout)
+            Processor -> DB: INSERT INTO execution_logs (fail, error_detail)
+            note over Processor: Пропуск текущей итерации\n(переход к следующему ID)
+        end
+    end
+
+    '''' Блок парсинга выполняется только если есть данные '''
+    alt Parse Data (status is srcDlnGot or dstDlnGot)
+        Processor -> Processor: Borsh Decode & Log Analysis
+
+        alt Parse Success
+            Processor -> DB: UPDATE status = 'srcDlnReady', order_id = ...
+            Processor -> DB: INSERT INTO execution_logs (success)
+        else Parse Error
+            Processor -> DB: INSERT INTO execution_logs (fail, error_detail)
+        end
+    end
+end
+Processor --> Cron: Done
+
+== 3. Aggregation Phase (Every 1h) ==
+note over Cron: Расчет USD объема для Dashboard
+Cron -> DB: Refresh Materialized View (Daily Volume)
+DB --> Cron: Success
+@endum

@@ -1,0 +1,57 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Task {
+  id            Int          @id @default(autoincrement())
+  signature     String       @unique
+  slot          BigInt
+  blockTimeInt  BigInt
+  blockTime     DateTime
+  contractType  String
+  status        String       @default("PENDING")
+  rawData       Json
+  attempts      Int          @default(0)
+  errorMessage  String?
+
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([status])
+}
+
+model Order {
+  orderId           String    @id
+
+  srcSignature      String?   @unique
+  srcGiveAmount     Decimal?
+  srcGiveToken      String?
+  srcAt             DateTime?
+
+  dstSignature      String?   @unique
+  dstTakeAmount     Decimal?
+  dstTakeToken      String?
+  dstAt             DateTime?
+
+  tokenAddress      String?
+
+  isCompleted       Boolean   @default(false)
+
+  usdValue          Decimal?  @db.Decimal(18, 2)
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([isCompleted])
+}
+
+model SyncCheckpoint {
+  contractType  String   @id
+  lastSignature String
+  lastSlot      BigInt
+  updatedAt     DateTime @updatedAt
+}

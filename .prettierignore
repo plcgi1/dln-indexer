@@ -1,0 +1,11 @@
+dist
+libs/**/.eslintrc.js
+libs/**/.gitignore
+libs/**/.npmignore
+libs/**/.prettierignore
+libs/**/.prettierrc
+libs/**/jest.config.js
+libs/**/package-lock.json
+libs/**/package.json
+libs/**/tsconfig.json
+node_modules
