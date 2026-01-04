@@ -24,6 +24,32 @@ model Task {
   @@index([status])
 }
 
+model TokenPrice {
+  tokenAddress      String   @id
+  priceUsd  Decimal  // Используйте Decimal вместо Float
+  decimals  Int
+  updatedAt DateTime @updatedAt
+}
+
+model TrnLog {
+  id            Int          @id @default(autoincrement())
+  orderId       String
+
+  signature     String?   @unique
+  amount        Decimal?
+  tokenAddress  String?
+  decimals      BigInt
+  trnDate       DateTime
+  trnEventType  String
+  usdValue      Decimal?  @db.Decimal(20, 9)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([orderId, trnEventType])
+  @@index([signature])
+}
+
 model Order {
   orderId           String    @id
 

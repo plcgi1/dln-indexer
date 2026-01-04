@@ -1,4 +1,4 @@
 export enum EOrderParsingStatus {
-    CREATED = 'CREATED',
-    FULFILLED = 'FULFILLED',
+  CREATED = 'CREATED',
+  FULFILLED = 'FULFILLED',
 }

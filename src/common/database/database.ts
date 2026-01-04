@@ -7,13 +7,33 @@ const pool = new Pool({ connectionString: config.database.url });
 const adapter = new PrismaPg(pool);
 
 declare global {
-    interface BigInt {
-        toJSON(): string;
-    }
+  interface BigInt {
+    toJSON(): string;
+  }
 }
 
 BigInt.prototype.toJSON = function (): string {
-    return this.toString();
+  return this.toString();
 };
 
-export const prisma = new PrismaClient({ adapter });
+export const prisma = new PrismaClient({
+  adapter,
+  log: [
+    {
+      emit: 'stdout',
+      level: 'query',
+    },
+    {
+      emit: 'stdout',
+      level: 'error',
+    },
+    {
+      emit: 'stdout',
+      level: 'info',
+    },
+    {
+      emit: 'stdout',
+      level: 'warn',
+    },
+  ],
+});

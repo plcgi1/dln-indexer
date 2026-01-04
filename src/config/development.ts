@@ -1,6 +1,6 @@
 module.exports = {
-    logging: {
-        level: 'debug',
-    },
-    syncConfirmations: 0,
+  logging: {
+    level: 'debug',
+  },
+  syncConfirmations: 0,
 };
