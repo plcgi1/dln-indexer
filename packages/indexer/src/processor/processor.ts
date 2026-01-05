@@ -81,7 +81,7 @@ export class DlnProcessor implements IWorker {
                     await this.processTask(task);
                 }
             } catch (err: any) {
-                this.logger.error({ err: err.message }, 'Error in processor main loop');
+                this.logger.error({ err }, 'Error in processor main loop');
                 await delayTimeout(this.errorDelayMs);
             }
         }
@@ -95,19 +95,45 @@ export class DlnProcessor implements IWorker {
             data: { status: ETaskStatus.PENDING },
         });
 
-        this.logger.info('DlnProcessor worker stopping...');
+        this.logger.info({ workingTasks: this.workingTasks }, 'DlnProcessor worker stopping...');
 
         prisma.$disconnect();
 
         process.exit(0);
     }
 
+    private async getCheckpoint(tx: any): Promise<number | null> {
+        const checkpoint = await tx.processCheckpoint.findFirst({});
+
+        return checkpoint?.lastTaskId || null;
+    }
+
+    private async updateCheckpoint(taskId: number, tx: any): Promise<void> {
+        await tx.processCheckpoint.upsert({
+            where: { id: 1 },
+            update: {
+                lastTaskId: taskId,
+            },
+            create: {
+                lastTaskId: taskId,
+            },
+        });
+    }
+
     private async claimTasks() {
         return await prisma.$transaction(async (tx) => {
+            const checkpoint = await this.getCheckpoint(tx)
+
+            const where = { status: ETaskStatus.PENDING }
+            if(checkpoint) {
+                where.id = {
+                    gte: checkpoint
+                }
+            }
             const tasks = await tx.task.findMany({
-                where: { status: ETaskStatus.PENDING },
+                where,
                 take: this.limitTasks,
-                orderBy: { slot: 'asc' },
+                orderBy: { id: 'asc' },
             });
             if (tasks.length > 0) {
                 await tx.task.updateMany({
@@ -126,12 +152,13 @@ export class DlnProcessor implements IWorker {
         });
     }
 
-    private async upsertOrder(
+    private async upsertTrnLog(
         orderId: string,
         amount: string | null,
         tokenAddress: string | null,
         decimals: number | null,
         price: string | null,
+        usdValue: string | null,
         task: Task,
         tx: any = prisma,
     ) {
@@ -147,7 +174,8 @@ export class DlnProcessor implements IWorker {
                 tokenAddress,
                 decimals,
                 trnDate: task.blockTime,
-                usdValue: price,
+                usdValue,
+                usdPrice: price
             },
             create: {
                 orderId,
@@ -157,7 +185,8 @@ export class DlnProcessor implements IWorker {
                 trnDate: task.blockTime,
                 signature: task.signature,
                 trnEventType: task.contractType,
-                usdValue: price,
+                usdValue,
+                usdPrice: price
             },
         });
     }
@@ -174,6 +203,13 @@ export class DlnProcessor implements IWorker {
 
                 if (data === null) {
                     this.logger.warn({ signature: task.signature, data }, 'Empty transaction data');
+                    await tx.task.update({
+                        where: { id: task.id },
+                        data: {
+                            status: ETaskStatus.ERROR,
+                            errorMessage: 'Empty transaction data'
+                        },
+                    });
                     return;
                 }
                 const price = await this.priceService.getPrice(data.tokenAddress, data.decimals);
@@ -183,19 +219,20 @@ export class DlnProcessor implements IWorker {
                         { signature: task.signature },
                         `Price for token ${data.tokenAddress} is zero, skipping order ${data.orderId}`,
                     );
-                    // TODO че тут делать то - не пропарсим транзакццию
-                    return;
                 }
                 const usdValue = this.priceService.calculateVolume(data.amount, data.decimals, price);
-                await this.upsertOrder(
+                await this.upsertTrnLog(
                     data.orderId,
                     data.amount,
                     data.tokenAddress,
                     data.decimals,
+                    price,
                     usdValue,
                     task,
                     tx
                 );
+
+                await this.updateCheckpoint(task.id, tx)
 
                 await tx.task.update({
                     where: { id: task.id },

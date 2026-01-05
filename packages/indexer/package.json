@@ -12,8 +12,8 @@
     "build": "tsc",
     "indexer": "npx tsx src/indexer/index.ts",
     "processor": "npx tsx src/processor/index.ts",
-    "fill-ordercreated": "echo 'TODO: implement fill-ordercreated script'",
-    "fill-orderfullfilled": "echo 'TODO: implement fill-orderfullfilled script'"
+    "fill-ordercreated": "npx ts-node -r tsconfig-paths/register scripts/cold-start.ts 25000 SOURCE",
+    "fill-orderfullfilled": "npx ts-node -r tsconfig-paths/register scripts/cold-start.ts 25000 DESTINATION"
   },
   "author": "",
   "license": "ISC",
@@ -22,6 +22,7 @@
     "@solana/web3.js": "^1.98.4",
     "assert": "^2.1.0",
     "big.js": "^7.0.1",
+    "commander": "^14.0.2",
     "dlni-shared": "1.0.0",
     "dotenv": "^17.2.3",
     "fs": "^0.0.1-security",

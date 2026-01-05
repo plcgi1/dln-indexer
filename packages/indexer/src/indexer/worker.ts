@@ -10,6 +10,11 @@ export enum EContractType {
     DESTINATION = 'DESTINATION',
 }
 
+export enum ESignaturesPeriod {
+    before = 'before',
+    until = 'before'
+}
+
 const createOrderWithNonceInstructionDiscriminator = [130, 131, 98, 190, 40, 206, 68, 50];
 
 const fulfillOrderInstructionDiscriminator = [61, 214, 39, 248, 65, 212, 153, 36];
@@ -119,15 +124,15 @@ export class DlnIndexer implements IWorker {
      */
     private async getCheckpoint(contractType: EContractType): Promise<string | null> {
         // 1. Ищем последний READY, чтобы знать, где остановился Процессор
-        const lastReady = await prisma.task.findFirst({
-            where: {
-                contractType: contractType as any,
-                status: ETaskStatus.READY,
-            },
-            orderBy: { slot: 'desc' },
-        });
-
-        if (lastReady) return lastReady.signature;
+        // const lastReady = await prisma.task.findFirst({
+        //     where: {
+        //         contractType: contractType as any,
+        //         status: ETaskStatus.READY,
+        //     },
+        //     orderBy: { slot: 'desc' },
+        // });
+        //
+        // if (lastReady) return lastReady.signature;
 
         // 2. Фоллбек на чекпоинт, если READY еще нет (холодный старт)
         const checkpoint = await prisma.syncCheckpoint.findUnique({
@@ -214,13 +219,14 @@ export class DlnIndexer implements IWorker {
     /**
      * Логика получения данных для одного контракта
      */
-    private async processContract(type: EContractType): Promise<number> {
+    private async processContract(type: EContractType, signaturesPeriod: ESignaturesPeriod = ESignaturesPeriod.until): Promise<number> {
         const pubkey = this.contracts[type].pubKey;
         const lastSig = await this.getCheckpoint(type);
 
         const signatures = await this.connection.getSignaturesForAddress(pubkey, {
-            before: lastSig || undefined,
-            // until: lastSig || undefined,
+            // для накачки в 25000 используем before - одноразово
+            // для прода используем until
+            [signaturesPeriod]: lastSig || undefined,
             limit: this.pageLimit,
         });
 
@@ -278,6 +284,29 @@ export class DlnIndexer implements IWorker {
                 const totalFound = sourceCount + destCount;
 
                 if (totalFound === 0) {
+                    this.logger.debug('No new data. Sleeping...');
+                    await delayTimeout(this.idleDelayMs);
+                } else {
+                    await delayTimeout(this.activeDelayMs);
+                    this.logger.debug({ activeDelayMs: this.activeDelayMs }, 'Continue.... Sleeping...');
+                }
+            } catch (err: any) {
+                this.logger.error({ errorDelayMs: this.errorDelayMs, err }, 'Critical error in loop');
+                await delayTimeout(this.errorDelayMs);
+            }
+        }
+    }
+
+    public async coldStart(trnLimit: number, type: EContractType) {
+        this.logger.info('DlnIndexer cold start started');
+        let trnCount = 0
+        while (trnCount < trnLimit) {
+            try {
+                const savedTasks = await this.processContract(type, ESignaturesPeriod.before);
+
+                trnCount += savedTasks
+
+                if (savedTasks === 0) {
                     this.logger.debug('No new data. Sleeping...');
                     await delayTimeout(this.idleDelayMs);
                 } else {

@@ -37,7 +37,7 @@ const all = {
     dstContractAddress: env.INDEXER_DLN_DESTINATION_ADDRESS,
 
     indexer: {
-        pageLimit: env.INDEXER_PAGE_LIMIT ? +env.INDEXER_PAGE_LIMIT : 1000,
+        pageLimit: env.INDEXER_PAGE_LIMIT ? +env.INDEXER_PAGE_LIMIT : 100,
         rpcEndpoint: env.INDEXER_RPC_URL,
         errorDelayMs: 5000,
         idleDelayMs: 5000,
