@@ -1,0 +1,43 @@
+{
+  "ts-node": {
+    "require": ["tsconfig-paths/register"]
+  },
+  "compilerOptions": {
+    "incremental": true,
+    "target": "es2021",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "lib": ["ES2021"],
+    "baseUrl": ".",
+    "outDir": "build",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "useUnknownInCatchVariables": true,
+    "noImplicitOverride": false,
+    "skipLibCheck": true,
+    "allowJs": true,
+    "checkJs": false,
+    "sourceMap": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "resolveJsonModule": true,
+    "paths": {
+      "@config": ["./src/config/index"],
+      "@config/*": ["./src/config/*"],
+      "@indexer": ["./src/indexer/index"],
+      "@indexer/*": ["./src/indexer/*"],
+      "@processor": ["./src/processor/index"],
+      "@processor/*": ["./src/processor/*"],
+       "dlni-shared/*": ["../shared/src/*"]
+    }
+  },
+  "include": [
+    "scripts/*",
+    "src/**/*",
+    "../shared/src/**/*"
+  ],
+  "exclude": ["node_modules", "**/*.test.ts"]
+}

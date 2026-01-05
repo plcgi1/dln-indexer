@@ -1,0 +1,50 @@
+{
+  "name": "dlni-shared",
+  "description": "",
+  "version": "1.0.0",
+  "private": true,
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "lint": "eslint \"{src,test}/**/*.ts\" --fix  --config .eslint.mjs",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "prisma-gen": "npx prisma generate",
+    "prisma-reset": "npx prisma migrate reset",
+    "prisma-genmigrate": "npx prisma migrate dev --create-only",
+    "prisma-push": "npx prisma db push",
+    "prisma-migrate": "npx prisma migrate dev --name init",
+    "prisma-deploy": "npx prisma migrate deploy",
+    "prisma-studio": "npx prisma studio",
+    "build": "tsc"
+  },
+  "exports": {
+    "./types/*": "./src/types/*.ts",
+    "./utils/*": "./src/utils/*.ts",
+    "./db/*": "./src/db/*.ts"
+  },
+  "author": "plcgi1",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.2.0",
+    "@prisma/client": "^7.2.0",
+    "@prisma/config": "^7.2.0",
+    "format": "^0.2.2",
+    "pg": "^8.16.3",
+    "prom-client": "^15.1.3"
+  },
+  "devDependencies": {
+    "@prisma/config": "^7.2.0",
+    "@types/node": "^25.0.3",
+    "@types/pg": "^8.16.0",
+    "@typescript-eslint/eslint-plugin": "^8.50.1",
+    "dotenv-cli": "^11.0.0",
+    "eslint": "^9.39.2",
+    "prettier": "^3.7.4",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.50.1"
+  }
+}
