@@ -6,6 +6,7 @@ import { delayTimeout } from 'dlni-shared/utils/time';
 import { DlnTrnDataExtractor } from './data-extractor';
 import { TransactionResponse } from '@solana/web3.js';
 import { PriceService } from './price-service';
+import { AppConfig } from '@config';
 
 export class DlnProcessor implements IWorker {
   private readonly logger: pino.Logger;
@@ -18,7 +19,7 @@ export class DlnProcessor implements IWorker {
   private readonly activeDelayMs: number;
   private workingTasks: number[] = [];
 
-  constructor(options: any, dataExtractor: DlnTrnDataExtractor) {
+  constructor(options: AppConfig, dataExtractor: DlnTrnDataExtractor) {
     this.logger = pino({
       name: DlnProcessor.name,
       ...options.logging,

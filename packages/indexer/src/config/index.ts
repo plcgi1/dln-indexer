@@ -3,6 +3,34 @@ import * as dotenv from 'dotenv';
 
 dotenv.config();
 
+export interface AppConfig {
+  env: string;
+  
+  database: {
+    url: string;
+  };
+  logging?: {
+    level: string;
+    timestamp?: () => string;
+  };
+  srcContractAddress: string;
+  dstContractAddress: string;
+  indexer: {
+    pageLimit: number;
+    rpcEndpoint: string;
+    errorDelayMs: number;
+    idleDelayMs: number;
+    activeDelayMs: number;
+  };
+  processor: {
+    activeDelayMs: number;
+    errorDelayMs: number;
+  };
+  pricer: {
+    apiKey: string;
+  };
+}
+
 const env = process.env;
 
 const vars = [
@@ -18,27 +46,23 @@ vars.forEach((key) => {
   assert(env[key], `missing configuration env ${key}`);
 });
 
-const all = {
+const all: AppConfig = {
   env: env.NODE_ENV || 'production',
-  server: {
-    port: parseInt(env.PORT || '3000', 10),
-    host: env.HOST || 'localhost',
-  },
-  lastSignature: {},
+
   database: {
-    url: env.DATABASE_URL,
+    url: env.DATABASE_URL!,
   },
   logging: {
     level: 'debug',
     timestamp: () => `,"time":"${new Date(Date.now()).toISOString()}"`,
   },
 
-  srcContractAddress: env.INDEXER_DLN_SOURCE_ADDRESS,
-  dstContractAddress: env.INDEXER_DLN_DESTINATION_ADDRESS,
+  srcContractAddress: env.INDEXER_DLN_SOURCE_ADDRESS!,
+  dstContractAddress: env.INDEXER_DLN_DESTINATION_ADDRESS!,
 
   indexer: {
     pageLimit: env.INDEXER_PAGE_LIMIT ? +env.INDEXER_PAGE_LIMIT : 100,
-    rpcEndpoint: env.INDEXER_RPC_URL,
+    rpcEndpoint: env.INDEXER_RPC_URL!,
     errorDelayMs: 5000,
     idleDelayMs: 5000,
     activeDelayMs: 5000,
@@ -50,7 +74,7 @@ const all = {
   },
 
   pricer: {
-    apiKey: env.JUPITER_API_KEY,
+    apiKey: env.JUPITER_API_KEY!,
   },
 };
 

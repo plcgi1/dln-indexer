@@ -2,7 +2,6 @@ import { DlnIndexer, EContractType } from '../worker';
 import { PublicKey } from '@solana/web3.js';
 
 jest.mock('../../db', () => {
-  // Импортируем мок-библиотеку прямо внутри фабрики
   const { mockDeep } = require('jest-mock-extended');
   return {
     __esModule: true,
@@ -10,14 +9,18 @@ jest.mock('../../db', () => {
   };
 });
 
-// 2. Теперь получаем доступ к этому моку для использования в тестах
 import { prisma as mockPrisma } from '../../db';
 import { mockReset } from 'jest-mock-extended';
+import { AppConfig } from '@config';
 
 describe('DlnIndexer', () => {
   let indexer: DlnIndexer;
-  const mockOptions = {
+  const mockOptions: AppConfig = {
+    env: 'test',
     logging: { level: 'silent' },
+    database: {
+      url: 'DATABASE_URL',
+    },
     indexer: {
       rpcEndpoint: 'http://localhost:8899',
       errorDelayMs: 1000,
@@ -27,6 +30,14 @@ describe('DlnIndexer', () => {
     },
     srcContractAddress: PublicKey.unique().toBase58(),
     dstContractAddress: PublicKey.unique().toBase58(),
+    processor: {
+      activeDelayMs: 5000,
+      errorDelayMs: 5000,
+    },
+
+    pricer: {
+      apiKey: 'JUPITER_API_KEY',
+    },
   };
 
   beforeEach(() => {
@@ -41,14 +52,13 @@ describe('DlnIndexer', () => {
           message: {
             compiledInstructions: [
               {
-                // Дискриминатор [130, 131, 98, 190, 40, 206, 68, 50] в hex
+                // Descriminator [130, 131, 98, 190, 40, 206, 68, 50] в hex
                 data: Buffer.from([130, 131, 98, 190, 40, 206, 68, 50, 1, 2, 3]),
               },
             ],
           },
         },
       };
-      // Доступ к приватному методу для теста
       expect((indexer as any).isTargetTransaction(mockTx)).toBe(true);
     });
 
@@ -70,10 +80,8 @@ describe('DlnIndexer', () => {
       const slot = 12345;
       const txData = { blockTime: 1600000000 };
 
-      // Мокаем, что задача не найдена
       (mockPrisma.task.findUnique as jest.Mock).mockResolvedValue(null);
 
-      // Имитируем успешную транзакцию
       (mockPrisma.$transaction as jest.Mock).mockImplementation(async (callback) => {
         return await callback(mockPrisma);
       });
@@ -101,7 +109,7 @@ describe('DlnIndexer', () => {
       await (indexer as any).saveToDb(signature, 100, EContractType.SOURCE, { blockTime: 123 });
 
       expect(mockPrisma.task.update).toHaveBeenCalled();
-      // Проверяем, что в update НЕ передается статус, чтобы не перезатереть WORK
+
       const updateCall = (mockPrisma.task.update as jest.Mock).mock.calls[0][0];
       expect(updateCall.data.status).toBeUndefined();
     });

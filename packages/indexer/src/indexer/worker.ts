@@ -3,6 +3,7 @@ import pino from 'pino';
 import { ETaskStatus, IWorker } from 'dlni-shared/types/worker';
 import { delayTimeout } from 'dlni-shared/utils/time';
 import { prisma } from '../db';
+import { AppConfig } from '@config';
 
 export enum EContractType {
   SOURCE = 'SOURCE',
@@ -13,11 +14,11 @@ export enum ESignaturesPeriod {
   before = 'before',
   until = 'until',
 }
-
+// From solita generated code
 const createOrderWithNonceInstructionDiscriminator = [130, 131, 98, 190, 40, 206, 68, 50];
-
+// From solita generated code
 const fulfillOrderInstructionDiscriminator = [61, 214, 39, 248, 65, 212, 153, 36];
-
+// From solita generated code
 const srcDescr = Buffer.from(createOrderWithNonceInstructionDiscriminator).toString('hex');
 const dstDescr = Buffer.from(fulfillOrderInstructionDiscriminator).toString('hex');
 
@@ -44,9 +45,7 @@ export class DlnIndexer implements IWorker {
   private readonly activeDelayMs: number;
   private readonly pageLimit: number;
 
-  constructor(options: any) {
-    // TODO пока any - позже конкретизировать
-    // @ts-ignore
+  constructor(options: AppConfig) {
     this.logger = pino({
       name: DlnIndexer.name,
       ...options.logging,
@@ -71,19 +70,18 @@ export class DlnIndexer implements IWorker {
     this.pageLimit = config.pageLimit;
   }
 
+  /* We need ordercreated-fullfillorder transactions only - checks if transaction satisfied */
   private isTargetTransaction(tx: any): boolean {
-    // Вытягиваем все инструкции (включая внутренние, если нужно, но обычно проверяем верхнеуровневые)
     const instructions = tx.transaction.message.compiledInstructions;
 
     return instructions.some((ix: any) => {
-      // Защита: ix.data может быть строкой base64 или уже буфером в зависимости от версии RPC/SDK
+      // ix.data can be base64 string or buffer - depends from RPC/SDK version
       const data = typeof ix.data === 'string' ? Buffer.from(ix.data, 'base64') : Buffer.from(ix.data);
 
       if (data.length < 8) return false;
 
       const discriminator = data.slice(0, 8).toString('hex');
 
-      // Проверяем наличие текущего дискриминатора в списке разрешенных
       const result = Object.keys(DISCRIMINATOR_NAMES).includes(discriminator);
 
       if (result) {
@@ -97,7 +95,7 @@ export class DlnIndexer implements IWorker {
   }
 
   /**
-   * Получает последнюю обработанную сигнатуру из БД
+   * Gets last saved signature from DB
    */
   private async getCheckpoint(contractType: EContractType): Promise<string | null> {
     const checkpoint = await prisma.syncCheckpoint.findUnique({
@@ -108,20 +106,17 @@ export class DlnIndexer implements IWorker {
   }
 
   /**
-   * Сохраняет "сырую" транзакцию и обновляет чекпоинт
+   * Stores raw transaction and updates checkpoint
    */
   private async saveToDb(signature: string, slot: number, type: EContractType, txData: any) {
     try {
       await prisma.$transaction(
         async (tx) => {
-          // 1. Пытаемся найти существующую задачу
           const existingTask = await tx.task.findUnique({
             where: { signature: signature },
-            select: { id: true, status: true }, // Берем только нужные поля для скорости
+            select: { id: true, status: true },
           });
           if (existingTask) {
-            // Если задача уже есть, обновляем только "технические" поля.
-            // Мы НЕ передаем поле status в update, чтобы не сбросить READY или WORK.
             await tx.task.update({
               where: { id: existingTask.id },
               data: {
@@ -134,7 +129,6 @@ export class DlnIndexer implements IWorker {
             });
             this.logger.info({ signature }, 'Task updated (status preserved)');
           } else {
-            // Если задачи нет — создаем новую со статусом PENDING
             await tx.task.create({
               data: {
                 signature: signature,
@@ -149,8 +143,8 @@ export class DlnIndexer implements IWorker {
             this.logger.info({ signature }, 'New task created (PENDING)');
           }
 
-          // 2. Обновляем SyncCheckpoint
-          // Это нужно, чтобы getCheckpoint знал о физическом прогрессе индексатора
+          // Update SyncCheckpoint
+          // we need it to let getCheckpoint know about physical indexer progress
           await tx.syncCheckpoint.upsert({
             where: { contractType: type },
             update: {
@@ -163,8 +157,7 @@ export class DlnIndexer implements IWorker {
           });
         },
         {
-          // Устанавливаем короткий таймаут для транзакции,
-          // чтобы не блокировать базу при больших JSON
+          // We dont want to block DB with big JSON and set short transaction timeout
           timeout: 10000,
         },
       );
@@ -177,12 +170,12 @@ export class DlnIndexer implements IWorker {
         },
         'Failed to save task to DB',
       );
-      throw err; // Пробрасываем ошибку, чтобы остановить цикл обработки текущей пачки
+      throw err;
     }
   }
 
   /**
-   * Логика получения данных для одного контракта
+   * One iteration - process one contract (source or destination)
    */
   private async processContract(
     type: EContractType,
@@ -192,8 +185,6 @@ export class DlnIndexer implements IWorker {
     const lastSig = await this.getCheckpoint(type);
 
     const signatures = await this.connection.getSignaturesForAddress(pubkey, {
-      // для накачки в 25000 используем before - одноразово
-      // для прода используем until
       [signaturesPeriod]: lastSig || undefined,
       limit: this.pageLimit,
     });
@@ -236,7 +227,7 @@ export class DlnIndexer implements IWorker {
   }
 
   /**
-   * Главный цикл - рабочая лошадка
+   * Main loop - the workhorse
    */
   public async start() {
     this.logger.info('DlnIndexer started');
@@ -262,6 +253,7 @@ export class DlnIndexer implements IWorker {
     }
   }
 
+  /* One time usage - to fetch 25000 records for each (src,dst) contracts */
   public async coldStart(trnLimit: number, type: EContractType) {
     this.logger.info('DlnIndexer cold start started');
     let trnCount = 0;

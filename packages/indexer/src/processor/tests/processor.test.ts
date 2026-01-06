@@ -8,14 +8,37 @@ jest.mock('../../db', () => {
 });
 
 import { prisma as mockPrisma } from '../../db';
+import { AppConfig } from '@config';
+import { PublicKey } from '@solana/web3.js';
 
 describe('DlnProcessor', () => {
   let processor: DlnProcessor;
   const mockExtractor: any = { extract: jest.fn() };
-  const mockOptions = {
+  const mockOptions: AppConfig = {
+    env: 'test',
     logging: { level: 'silent' },
-    processor: { errorDelayMs: 10, activeDelayMs: 10 },
+    database: {
+      url: 'DATABASE_URL',
+    },
+    indexer: {
+      rpcEndpoint: 'http://localhost:8899',
+      errorDelayMs: 1000,
+      idleDelayMs: 1000,
+      activeDelayMs: 1000,
+      pageLimit: 10,
+    },
+    srcContractAddress: PublicKey.unique().toBase58(),
+    dstContractAddress: PublicKey.unique().toBase58(),
+    processor: {
+      activeDelayMs: 5000,
+      errorDelayMs: 5000,
+    },
+
+    pricer: {
+      apiKey: 'JUPITER_API_KEY',
+    },
   };
+
 
   beforeEach(() => {
     processor = new DlnProcessor(mockOptions, mockExtractor);
