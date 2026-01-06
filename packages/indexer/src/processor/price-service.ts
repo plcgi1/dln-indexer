@@ -4,84 +4,84 @@ import pino from 'pino';
 import Big from 'big.js';
 
 export interface TokenPrice {
-    usdPrice: number;
-    blockId: number;
-    decimals: number;
-    priceChange24h?: number;
-    liquidity?: number;
+  usdPrice: number;
+  blockId: number;
+  decimals: number;
+  priceChange24h?: number;
+  liquidity?: number;
 }
 
 export type PriceApiResponse = Record<string, TokenPrice>;
 
 export class PriceService {
-    private readonly JUPITER_API = 'https://api.jup.ag/price/v3';
-    private readonly JUPITER_API_KEY = config.pricer.apiKey;
-    private readonly CACHE_TTL_MS = 15 * 60 * 1000;
-    private readonly logger: pino.Logger = pino({ name: 'PriceService' });
+  private readonly JUPITER_API = 'https://api.jup.ag/price/v3';
+  private readonly JUPITER_API_KEY = config.pricer.apiKey;
+  private readonly CACHE_TTL_MS = 15 * 60 * 1000;
+  private readonly logger: pino.Logger = pino({ name: 'PriceService' });
 
-    async getPrice(tokenAddress: string, decimals: number): Promise<Big> {
-        const cached = await prisma.tokenPrice.findUnique({ where: { tokenAddress } });
+  async getPrice(tokenAddress: string, decimals: number): Promise<Big> {
+    const cached = await prisma.tokenPrice.findUnique({ where: { tokenAddress } });
 
-        if (cached && cached.usdPrice && cached.liquidity && Date.now() - cached.updatedAt.getTime() < this.CACHE_TTL_MS) {
-            return new Big(cached.usdPrice.toString());
-        }
-
-        return await this.fetchAndSavePrice(tokenAddress, decimals);
+    if (cached && cached.usdPrice && Date.now() - cached.updatedAt.getTime() < this.CACHE_TTL_MS) {
+      return new Big(cached.usdPrice.toString());
     }
 
-    /**
-     * Получает точную цену токена через fetch с API-ключом
-     */
-    private async fetchAndSavePrice(tokenAddress: string, decimals: number): Promise<Big> {
-        const url = `${this.JUPITER_API}?ids=${tokenAddress}`;
+    return await this.fetchAndSavePrice(tokenAddress, decimals);
+  }
 
-        try {
-            const response = await fetch(url, {
-                headers: { 'x-api-key': this.JUPITER_API_KEY },
-            });
+  /**
+   * Получает точную цену токена через fetch с API-ключом
+   */
+  private async fetchAndSavePrice(tokenAddress: string, decimals: number): Promise<Big> {
+    const url = `${this.JUPITER_API}?ids=${tokenAddress}`;
 
-            const data = (await response.json()) as PriceApiResponse;
+    try {
+      const response = await fetch(url, {
+        headers: { 'x-api-key': this.JUPITER_API_KEY },
+      });
 
-            const rawPrice = data[tokenAddress].usdPrice;
+      const data = (await response.json()) as PriceApiResponse;
 
-            if (!rawPrice) {
-                this.logger.warn({ url }, `[PriceService] Токен ${tokenAddress} не найден в Jupiter V3`);
-                return new Big(0)
-            }
+      const rawPrice = data[tokenAddress].usdPrice;
 
-            const price = new Big(rawPrice);
+      if (!rawPrice) {
+        this.logger.warn({ url }, `[PriceService] Токен ${tokenAddress} не найден в Jupiter V3`);
+        return new Big(0);
+      }
 
-            await prisma.tokenPrice.upsert({
-                where: { tokenAddress },
-                update: {
-                    usdPrice: price.toString(),
-                    updatedAt: new Date(),
-                },
-                create: {
-                    tokenAddress,
-                    usdPrice: price.toString(),
-                    decimals,
-                },
-            });
+      const price = new Big(rawPrice);
 
-            return price
-        } catch (error) {
-            this.logger.error({ error }, `[PriceService] Fetch failed for ${tokenAddress}:`);
-            return new Big(0)
-        }
+      await prisma.tokenPrice.upsert({
+        where: { tokenAddress },
+        update: {
+          usdPrice: price.toString(),
+          updatedAt: new Date(),
+        },
+        create: {
+          tokenAddress,
+          usdPrice: price.toString(),
+          decimals,
+        },
+      });
+
+      return price;
+    } catch (error) {
+      this.logger.error({ error }, `[PriceService] Fetch failed for ${tokenAddress}:`);
+      return new Big(0);
     }
+  }
 
-    /**
-     * Точный расчет объема сделки
-     */
-    calculateVolume(amountRaw: string | bigint, decimals: number, priceUsd: Big): string {
-        if (priceUsd.eq(0)) return '0';
+  /**
+   * Точный расчет объема сделки
+   */
+  calculateVolume(amountRaw: string | bigint, decimals: number, priceUsd: Big): string {
+    if (priceUsd.eq(0)) return '0';
 
-        const amount = new Big(amountRaw.toString());
-        const divisor = new Big(10).pow(decimals);
+    const amount = new Big(amountRaw.toString());
+    const divisor = new Big(10).pow(decimals);
 
-        // Точный расчет: (amount / 10^decimals) * price
-        const result = amount.div(divisor).mul(priceUsd).toFixed(9);
-        return result;
-    }
+    // Точный расчет: (amount / 10^decimals) * price
+    const result = amount.div(divisor).mul(priceUsd).toFixed(9);
+    return result;
+  }
 }

@@ -9,6 +9,6 @@ process.on('SIGINT', () => processor.stop());
 process.on('SIGTERM', () => processor.stop());
 
 processor.start().catch((err) => {
-    console.error('Fatal start error', err);
-    process.exit(1);
+  console.error('Fatal start error', err);
+  process.exit(1);
 });

@@ -1,0 +1,120 @@
+import { DlnIndexer, EContractType } from '../worker';
+import { PublicKey } from '@solana/web3.js';
+
+jest.mock('../../db', () => {
+  // Импортируем мок-библиотеку прямо внутри фабрики
+  const { mockDeep } = require('jest-mock-extended');
+  return {
+    __esModule: true,
+    prisma: mockDeep(),
+  };
+});
+
+// 2. Теперь получаем доступ к этому моку для использования в тестах
+import { prisma as mockPrisma } from '../../db';
+import { mockReset } from 'jest-mock-extended';
+
+describe('DlnIndexer', () => {
+  let indexer: DlnIndexer;
+  const mockOptions = {
+    logging: { level: 'silent' },
+    indexer: {
+      rpcEndpoint: 'http://localhost:8899',
+      errorDelayMs: 1000,
+      idleDelayMs: 1000,
+      activeDelayMs: 1000,
+      pageLimit: 10,
+    },
+    srcContractAddress: PublicKey.unique().toBase58(),
+    dstContractAddress: PublicKey.unique().toBase58(),
+  };
+
+  beforeEach(() => {
+    mockReset(mockPrisma as any);
+    indexer = new DlnIndexer(mockOptions);
+  });
+
+  describe('isTargetTransaction', () => {
+    it('should return true for CreateOrderWithNonce discriminator', () => {
+      const mockTx = {
+        transaction: {
+          message: {
+            compiledInstructions: [
+              {
+                // Дискриминатор [130, 131, 98, 190, 40, 206, 68, 50] в hex
+                data: Buffer.from([130, 131, 98, 190, 40, 206, 68, 50, 1, 2, 3]),
+              },
+            ],
+          },
+        },
+      };
+      // Доступ к приватному методу для теста
+      expect((indexer as any).isTargetTransaction(mockTx)).toBe(true);
+    });
+
+    it('should return false for unknown discriminator', () => {
+      const mockTx = {
+        transaction: {
+          message: {
+            compiledInstructions: [{ data: Buffer.from([0, 0, 0, 0, 0, 0, 0, 0]) }],
+          },
+        },
+      };
+      expect((indexer as any).isTargetTransaction(mockTx)).toBe(false);
+    });
+  });
+
+  describe('saveToDb', () => {
+    it('should create a new task if it does not exist', async () => {
+      const signature = 'test_sig';
+      const slot = 12345;
+      const txData = { blockTime: 1600000000 };
+
+      // Мокаем, что задача не найдена
+      (mockPrisma.task.findUnique as jest.Mock).mockResolvedValue(null);
+
+      // Имитируем успешную транзакцию
+      (mockPrisma.$transaction as jest.Mock).mockImplementation(async (callback) => {
+        return await callback(mockPrisma);
+      });
+
+      await (indexer as any).saveToDb(signature, slot, EContractType.SOURCE, txData);
+
+      expect(mockPrisma.task.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            signature: signature,
+            status: 'PENDING',
+          }),
+        }),
+      );
+    });
+
+    it('should update task if it already exists but keep status', async () => {
+      const signature = 'existing_sig';
+      (mockPrisma.task.findUnique as jest.Mock).mockResolvedValue({ id: 1, status: 'WORK' });
+
+      (mockPrisma.$transaction as jest.Mock).mockImplementation(async (callback) => {
+        return await callback(mockPrisma);
+      });
+
+      await (indexer as any).saveToDb(signature, 100, EContractType.SOURCE, { blockTime: 123 });
+
+      expect(mockPrisma.task.update).toHaveBeenCalled();
+      // Проверяем, что в update НЕ передается статус, чтобы не перезатереть WORK
+      const updateCall = (mockPrisma.task.update as jest.Mock).mock.calls[0][0];
+      expect(updateCall.data.status).toBeUndefined();
+    });
+  });
+
+  describe('getCheckpoint', () => {
+    it('should return lastSignature from DB', async () => {
+      (mockPrisma.syncCheckpoint.findUnique as jest.Mock).mockResolvedValue({
+        lastSignature: 'sig_123',
+      });
+
+      const result = await (indexer as any).getCheckpoint(EContractType.SOURCE);
+      expect(result).toBe('sig_123');
+    });
+  });
+});

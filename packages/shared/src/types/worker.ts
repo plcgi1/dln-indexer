@@ -1,10 +1,4 @@
-import { Counter, Gauge } from 'prom-client';
-
 export interface IWorker {
-    readonly metrics: {
-        txCounter: Counter;
-        lastSlotGauge: Gauge;
-    };
     start: () => void;
     stop: () => void;
 }

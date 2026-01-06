@@ -37,7 +37,8 @@
   "include": [
     "scripts/*",
     "src/**/*",
-    "../shared/src/**/*"
+    "../shared/src/**/*",
+    "src/**/tests/**/*.ts"
   ],
-  "exclude": ["node_modules", "**/*.test.ts"]
+  "exclude": ["node_modules"]
 }
