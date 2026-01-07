@@ -36,18 +36,24 @@ The `PriceService` handles the conversion of transaction amounts into USD using 
 
 ## Technical stack
 
-* **Runtime:** Node.js / TypeScript (>=v22) / yarn monorepo
-* **Database:** Postgres
+* **indexer + processor**
+    * **Runtime:** Node.js(>=v22) / TypeScript / yarn monorepo
+    * **Database:** Postgres
+    * **Monitoring:** [Prometeus] - optional
+
 * **Dashboard:** [React / Next.js]
-* **Monitoring:** [Prometeus] - optional
+    * **Framework:** Next.js (App Router)
+    * **Visualization:** Apache ECharts (via `echarts-for-react`)
+    * **Database:** Prisma ORM
+    * **Validation:** Zod (for URL search parameters)
+    * **Styling:** Tailwind CSS
+
 
 ---
 
 ## Launch instructions
 
 ### Setup postgres
-
-Example: https://github.com/snowplow/snowplow/wiki/Setting-up-PostgreSQL#ec2
 
 connect to DB - one time
 ```
@@ -166,8 +172,8 @@ yarn run fill-orderfullfilled
 4. **One point of trust:** All configuration in one place - packages/indexer/src/config.
 
 ### Minuses
-1. **Periodical RPC polling** - not for realtime(see **Improvement list**)
-2. **nextjs usage for dashboard** - no API methods to get statistics (see **Improvement list**)
+1. **Periodical RPC polling** - not for realtime(see **Future Improvements & Scalability**)
+2. **nextjs usage for dashboard** - no API methods to get statistics (see **Future Improvements & Scalability**)
 
 ---
 
@@ -198,6 +204,11 @@ yarn run fill-orderfullfilled
 
 * **Advanced Analytics Engine**
     * Extend the UI to include deeper insights such as "Volume by Token Pair", "Protocol Fee Tracking", "Avg 24h $volume", and "User Retention Metrics" using specialized PostgreSQL time-series indexes.
+
+* **Distributed Observability with OpenTelemetry**
+    * Integrate OpenTelemetry (OTel) to collect distributed traces, metrics, and logs across all services.
+
+    * **Why**: This provides deep visibility into the system, allowing us to visualize the exact lifecycle of a transaction—from the moment it's picked up by the Indexer to its final storage in the database.
 
 * **Centralized Error Tracking with Sentry**
     * Integrate Sentry SDK across all microservices (Indexer, Processor, and UI).
