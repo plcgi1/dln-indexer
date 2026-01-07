@@ -193,7 +193,7 @@ yarn run fill-orderfullfilled
 
 
 * **Advanced Analytics Engine**
-    * Extend the UI to include deeper insights such as "Volume by Token Pair", "Protocol Fee Tracking", and "User Retention Metrics" using specialized PostgreSQL time-series indexes.
+    * Extend the UI to include deeper insights such as "Volume by Token Pair", "Protocol Fee Tracking", "Avg 24h $volume", and "User Retention Metrics" using specialized PostgreSQL time-series indexes.
 
 * **Centralized Error Tracking with Sentry**
     * Integrate Sentry SDK across all microservices (Indexer, Processor, and UI).
