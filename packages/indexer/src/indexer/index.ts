@@ -1,7 +1,10 @@
 import { DlnIndexer } from './worker';
-import config from '@config';
+import config from '../config';
+import { initPromServer } from 'src/metrics/prom.server';
 
 const indexer = new DlnIndexer(config);
+
+initPromServer(config.indexer.promPort, 'indexer', config);
 
 process.on('SIGINT', () => indexer.stop());
 process.on('SIGTERM', () => indexer.stop());

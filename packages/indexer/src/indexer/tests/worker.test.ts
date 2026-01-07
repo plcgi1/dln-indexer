@@ -1,4 +1,4 @@
-import { DlnIndexer, EContractType } from '../worker';
+import { DlnIndexer } from '../worker';
 import { PublicKey } from '@solana/web3.js';
 
 jest.mock('../../db', () => {
@@ -11,7 +11,9 @@ jest.mock('../../db', () => {
 
 import { prisma as mockPrisma } from '../../db';
 import { mockReset } from 'jest-mock-extended';
-import { AppConfig } from '@config';
+import { AppConfig } from '../../config';
+import { EContractType } from 'dlni-shared/types/contract';
+import { EventTypes } from 'dlni-shared/utils/event-labels';
 
 describe('DlnIndexer', () => {
   let indexer: DlnIndexer;
@@ -22,6 +24,7 @@ describe('DlnIndexer', () => {
       url: 'DATABASE_URL',
     },
     indexer: {
+      promPort: 9091,
       rpcEndpoint: 'http://localhost:8899',
       errorDelayMs: 1000,
       idleDelayMs: 1000,
@@ -31,6 +34,7 @@ describe('DlnIndexer', () => {
     srcContractAddress: PublicKey.unique().toBase58(),
     dstContractAddress: PublicKey.unique().toBase58(),
     processor: {
+      promPort: 9091,
       activeDelayMs: 5000,
       errorDelayMs: 5000,
     },
@@ -93,6 +97,8 @@ describe('DlnIndexer', () => {
           data: expect.objectContaining({
             signature: signature,
             status: 'PENDING',
+            contractType: EContractType.SOURCE,
+            eventName: EventTypes.OrderCreated,
           }),
         }),
       );

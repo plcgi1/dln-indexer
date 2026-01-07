@@ -1,14 +1,12 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import pino from 'pino';
 import { ETaskStatus, IWorker } from 'dlni-shared/types/worker';
+import { EContractType } from 'dlni-shared/types/contract';
 import { delayTimeout } from 'dlni-shared/utils/time';
 import { prisma } from '../db';
-import { AppConfig } from '@config';
-
-export enum EContractType {
-  SOURCE = 'SOURCE',
-  DESTINATION = 'DESTINATION',
-}
+import { AppConfig } from '../config';
+import { Registry, Counter, Gauge } from 'prom-client';
+import { EventTypes } from 'dlni-shared/utils/event-labels';
 
 export enum ESignaturesPeriod {
   before = 'before',
@@ -30,6 +28,10 @@ const DISCRIMINATOR_NAMES: Record<string, string> = {
 export class DlnIndexer implements IWorker {
   private readonly logger: pino.Logger;
   private readonly connection: Connection;
+  readonly metrics: {
+    txCounter: Counter;
+    lastSlotGauge: Gauge;
+  };
 
   private readonly contracts: {
     [EContractType.SOURCE]: {
@@ -50,6 +52,21 @@ export class DlnIndexer implements IWorker {
       name: DlnIndexer.name,
       ...options.logging,
     });
+    const register = new Registry();
+    this.metrics = {
+      txCounter: new Counter({
+        name: 'indexer_tx_saved_total',
+        help: 'Total transactions saved to raw database',
+        labelNames: ['contract_type'],
+        registers: [register],
+      }),
+      lastSlotGauge: new Gauge({
+        name: 'indexer_last_slot',
+        help: 'Last processed slot per contract',
+        labelNames: ['contract_type'],
+        registers: [register],
+      }),
+    };
 
     const config = options.indexer;
 
@@ -68,6 +85,17 @@ export class DlnIndexer implements IWorker {
     this.idleDelayMs = config.idleDelayMs;
     this.activeDelayMs = config.activeDelayMs;
     this.pageLimit = config.pageLimit;
+  }
+
+  getEventName(type: EContractType) {
+    switch (type) {
+      case EContractType.SOURCE:
+        return EventTypes.OrderCreated;
+      case EContractType.DESTINATION:
+        return EventTypes.OrderFulfilled;
+      default:
+        throw new Error(`Unknown contract type: ${type}`);
+    }
   }
 
   /* We need ordercreated-fullfillorder transactions only - checks if transaction satisfied */
@@ -110,6 +138,7 @@ export class DlnIndexer implements IWorker {
    */
   private async saveToDb(signature: string, slot: number, type: EContractType, txData: any) {
     try {
+      const eventName = this.getEventName(type);
       await prisma.$transaction(
         async (tx) => {
           const existingTask = await tx.task.findUnique({
@@ -122,7 +151,8 @@ export class DlnIndexer implements IWorker {
               data: {
                 slot: BigInt(slot),
                 rawData: txData as any,
-                contractType: type as unknown as EContractType,
+                contractType: type,
+                eventName,
                 blockTimeInt: BigInt(txData.blockTime),
                 blockTime: new Date(txData.blockTime * 1000),
               },
@@ -133,7 +163,8 @@ export class DlnIndexer implements IWorker {
               data: {
                 signature: signature,
                 slot: BigInt(slot),
-                contractType: type as unknown as EContractType,
+                contractType: type,
+                eventName,
                 rawData: txData as any,
                 status: ETaskStatus.PENDING,
                 blockTimeInt: BigInt(txData.blockTime),
@@ -216,6 +247,9 @@ export class DlnIndexer implements IWorker {
         await this.saveToDb(sigInfo.signature, sigInfo.slot, type, tx);
 
         saved++;
+
+        this.metrics.txCounter.inc({ contract_type: type });
+        this.metrics.lastSlotGauge.set({ contract_type: type }, sigInfo.slot);
 
         this.logger.info({ type, signature: sigInfo.signature }, 'processContract.Transaction saved');
       } catch (err: any) {

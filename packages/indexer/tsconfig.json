@@ -25,12 +25,6 @@
     "noFallthroughCasesInSwitch": true,
     "resolveJsonModule": true,
     "paths": {
-      "@config": ["./src/config/index"],
-      "@config/*": ["./src/config/*"],
-      "@indexer": ["./src/indexer/index"],
-      "@indexer/*": ["./src/indexer/*"],
-      "@processor": ["./src/processor/index"],
-      "@processor/*": ["./src/processor/*"],
        "dlni-shared/*": ["../shared/src/*"]
     }
   },

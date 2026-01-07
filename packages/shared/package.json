@@ -16,7 +16,7 @@
     "prisma-migrate": "npx prisma migrate dev --name init",
     "prisma-deploy": "npx prisma migrate deploy",
     "prisma-studio": "npx prisma studio",
-    "build": "tsc"
+    "build": "tsc && tsc-alias"
   },
   "exports": {
     "./types/*": "./src/types/*.ts",
@@ -42,9 +42,13 @@
     "eslint": "^9.39.2",
     "prettier": "^3.7.4",
     "ts-node": "^10.9.2",
+    "tsc-alias": "^1.8.16",
     "tsconfig-paths": "^4.2.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.50.1"
+  },
+  "_moduleAliases": {
+    "@config": "build/indexer/src/config"
   }
 }

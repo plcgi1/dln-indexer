@@ -1,4 +1,4 @@
-import config from '@config';
+import config from '../config';
 import { prisma } from '../db';
 import pino from 'pino';
 import Big from 'big.js';

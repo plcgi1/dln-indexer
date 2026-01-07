@@ -13,6 +13,7 @@ model Task {
   blockTimeInt  BigInt
   blockTime     DateTime
   contractType  String
+  eventName     String       @default("OrderCreated")
   status        String       @default("PENDING")
   rawData       Json
   attempts      Int          @default(0)
@@ -41,6 +42,7 @@ model TrnLog {
   decimals      BigInt
   trnDate       DateTime
   trnEventType  String
+  eventName     String       @default("OrderCreated")
   usdValue      Decimal?  @db.Decimal(20, 9)
   usdPrice      Decimal?  @db.Decimal(20, 9)
 

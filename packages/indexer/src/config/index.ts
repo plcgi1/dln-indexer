@@ -5,7 +5,7 @@ dotenv.config();
 
 export interface AppConfig {
   env: string;
-  
+
   database: {
     url: string;
   };
@@ -16,6 +16,7 @@ export interface AppConfig {
   srcContractAddress: string;
   dstContractAddress: string;
   indexer: {
+    promPort: number;
     pageLimit: number;
     rpcEndpoint: string;
     errorDelayMs: number;
@@ -23,6 +24,7 @@ export interface AppConfig {
     activeDelayMs: number;
   };
   processor: {
+    promPort: number;
     activeDelayMs: number;
     errorDelayMs: number;
   };
@@ -61,6 +63,7 @@ const all: AppConfig = {
   dstContractAddress: env.INDEXER_DLN_DESTINATION_ADDRESS!,
 
   indexer: {
+    promPort: 9091,
     pageLimit: env.INDEXER_PAGE_LIMIT ? +env.INDEXER_PAGE_LIMIT : 100,
     rpcEndpoint: env.INDEXER_RPC_URL!,
     errorDelayMs: 5000,
@@ -69,6 +72,7 @@ const all: AppConfig = {
   },
 
   processor: {
+    promPort: 9092,
     activeDelayMs: 5000,
     errorDelayMs: 5000,
   },

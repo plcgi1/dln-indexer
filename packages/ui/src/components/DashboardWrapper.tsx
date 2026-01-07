@@ -3,9 +3,10 @@ import { useState, useMemo } from 'react';
 import VolumeChart from './VolumeChart';
 
 export default function DashboardWrapper({ initialData }: { initialData: any[] }) {
-    const [data, setData] = useState(initialData);
+    const [data, ] = useState(initialData);
 
     const totals = useMemo(() => {
+        if(data.length === 0) return { source: 0, destination: 0 };
         return data.reduce((acc, curr) => {
             const s = Number(curr.source) || 0;
             const d = Number(curr.destination) || 0;

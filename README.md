@@ -1,3 +1,60 @@
+# deBridge DLN Indexer & Monitoring Dashboard
+
+This project is a high-performance monorepo designed to index, process, and visualize **deBridge DLN** (Destination Liquidity Network) cross-chain transactions on Solana. It tracks `CreateOrder` (Source) and `FulfillOrder` (Destination) events, calculates financial data, and exposes real-time metrics for monitoring.
+
+---
+
+## 🏗 Architecture Overview
+
+The system is built as a **Yarn Workspaces** monorepo running on **Node.js 22**:
+
+* **`packages/shared`**: The core domain layer containing the Prisma schema, shared TypeScript types, and database utilities.
+* **`packages/indexer`**:
+* **Indexer Service**: Scans the Solana blockchain for specific DLN contract interactions and saves raw transaction data.
+* **Processor Service**: Extracts trade details from raw logs and calculates USD volume.
+
+
+* **`packages/ui`**: A **Next.js 15+** dashboard for visualizing processed data and system health.
+
+---
+
+## 💰 USD Pricing & Caching Strategy
+
+The `PriceService` handles the conversion of transaction amounts into USD using a robust caching mechanism to ensure performance and stay within API limits:
+
+* **Database Cache**: Before calling external APIs, the service checks the `tokenPrice` table for an existing entry for the specific token.
+* **15-Minute TTL**: Cached prices are considered valid if they were updated within the last **15 minutes**.
+* **Jupiter V3 API**: If the cache is missing or expired, the service fetches the latest price from the **Jupiter V3 API** using a secure API key.
+* **Automatic Updates**: New prices are automatically saved back to the database with a fresh timestamp.
+
+---
+
+## 📦 Local Development Commands
+
+### `packages/shared`
+
+* `yarn run prisma-gen`: Generates the Prisma Client.
+* `yarn run prisma-push`: Syncs the DB structure without migrations.
+* `yarn build`: Compiles the shared package.
+
+### `packages/indexer`
+
+* `yarn run indexer`: Launches the Solana blockchain scanner.
+* `yarn run processor`: Launches the data extraction and pricing service.
+* `yarn build`: Compiles using `tsc-alias` to resolve path mappings.
+* `yarn test`: Runs the test suite (clears the `prom-client` registry before each test).
+
+### `packages/ui`
+
+* `yarn run dev`: Starts Next.js in development mode.
+* `yarn run build && yarn run start`: Production build and launch.
+
+---
+
+## 📊 Monitoring
+
+* **Prometheus**: Scrapes metrics from the Indexer and Processor (e.g., `processor_processed_tasks_total`, `indexer_last_slot`)
+
 ## вариант от ИИ
 
 # DLN Order Indexer (Solana)
@@ -6,33 +63,12 @@
 
 ## 🚀 Архитектурные решения
 
-### 1. Low-Level Parsing (Strong Plus)
 
-Вместо использования высокоуровневых абстракций Anchor, реализован **ручной парсинг инструкций и событий** с использованием сериализатора Borsh.
-
-* **Дискриминаторы событий:** Вычисляются вручную как первые 8 байт `sha256("event:CreatedOrder")`.
-* **Ручное управление смещениями (Offsets):** Декодирование начинается строго после дискриминатора, обеспечивая консистентность данных.
-* **Схемы Borsh:** Воссозданы на основе IDL программы для обеспечения типобезопасности при десериализации сложных структур, таких как `Order` и `Offer`.
-
-### 2. Детерминированное вычисление OrderId
-
-Реализована логика восстановления `orderId` на стороне клиента:
-
-* Поля структуры `Order` упаковываются в байтовую последовательность согласно правилам Borsh.
-* Используется алгоритм **Keccak-256** для хеширования, что позволяет верифицировать целостность данных без доверия к логам транзакции.
 
 ### 3. Обработка кроссчейн данных
 
 Поскольку DLN — межсетевой протокол, парсер учитывает:
 
-* **Разную длину адресов:** Поля `tokenAddress` обрабатываются как динамические массивы (`Vec<u8>`), что позволяет корректно индексировать как EVM (20 байт), так и Solana (32 байта) адреса.
-* **256-битные суммы:** Для обработки `amount` используются 32-байтовые массивы и библиотека `BN.js`, предотвращая потерю точности (в отличие от стандартного типа Number в JS).
-
-## 📊 Агрегация данных и USD Volume
-
-* **Метод конвертации:** Для расчета USD объема используется интеграция с [название API, например, Jupiter Price API].
-* **Логика:** Сумма токена нормализуется на основе его `decimals` (получаемых из ончейн-метаданных SPL Token) и умножается на историческую цену на момент транзакции.
-* **Хранение:** Данные сохраняются в [PostgreSQL/ClickHouse] с индексами по `orderId` и `blockTime` для мгновенной выборки за диапазон дат.
 
 ## 🛠 Технологический стек
 
@@ -125,7 +161,5 @@ src/
 ```
 
 ### подсказки для объяснения
-
-Для обеспечения надежности сериализации по протоколу Borsh я использовал классы, сгенерированные Solita, которые инкапсулируют в себе логику побайтового кодирования/декодирования согласно IDL программы."
 
 Для контракта solana хранит 100000 записей - иначе нужно использовать специализированные сервсиы

@@ -1,6 +1,7 @@
 // packages/indexer/src/processor/tests/processor.test.ts
 import { DlnProcessor } from '../processor';
 import { ETaskStatus } from 'dlni-shared/types/worker';
+import { register } from 'prom-client';
 
 jest.mock('../../db', () => {
   const { mockDeep } = require('jest-mock-extended');
@@ -8,7 +9,7 @@ jest.mock('../../db', () => {
 });
 
 import { prisma as mockPrisma } from '../../db';
-import { AppConfig } from '@config';
+import { AppConfig } from '../../config';
 import { PublicKey } from '@solana/web3.js';
 
 describe('DlnProcessor', () => {
@@ -21,6 +22,7 @@ describe('DlnProcessor', () => {
       url: 'DATABASE_URL',
     },
     indexer: {
+      promPort: 9091,
       rpcEndpoint: 'http://localhost:8899',
       errorDelayMs: 1000,
       idleDelayMs: 1000,
@@ -30,6 +32,7 @@ describe('DlnProcessor', () => {
     srcContractAddress: PublicKey.unique().toBase58(),
     dstContractAddress: PublicKey.unique().toBase58(),
     processor: {
+      promPort: 9091,
       activeDelayMs: 5000,
       errorDelayMs: 5000,
     },
@@ -39,9 +42,9 @@ describe('DlnProcessor', () => {
     },
   };
 
-
   beforeEach(() => {
     processor = new DlnProcessor(mockOptions, mockExtractor);
+    register.clear();
     (mockPrisma.$transaction as jest.Mock).mockImplementation(async (cb) => cb(mockPrisma));
   });
 

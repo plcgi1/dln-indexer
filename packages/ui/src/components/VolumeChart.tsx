@@ -2,6 +2,7 @@
 import ReactECharts from 'echarts-for-react';
 import * as echarts from 'echarts';
 import { useEffect, useState } from 'react';
+import { EVENT_TYPE_LABELS } from '@/lib/event-labels';
 
 export default function VolumeChart({ data }: { data: any[] }) {
     // console.info('data', data)
@@ -55,20 +56,18 @@ export default function VolumeChart({ data }: { data: any[] }) {
         },
         yAxis: [
             {
-                // Ось для больших значений (Source)
-                type: 'log', // или 'log'
-                name: 'Source',
+                type: 'log',
+                name: EVENT_TYPE_LABELS.OrderCreated,
                 scale: true,
                 position: 'left',
-                splitLine: { show: false }, // Убираем вторую сетку, чтобы не рябило
+                splitLine: { show: false },
                 axisLabel: {
                     formatter: (value: number) => value < 0.01 ? value.toExponential(1) : value.toFixed(2)
                 }
             },
             {
-                // Ось для микро-значений (Destination)
                 type: 'log', // Логарифмическая шкала для лучшей видимости малых значений
-                name: 'Destination',
+                name: EVENT_TYPE_LABELS.OrderFulfilled,
                 scale: true,
                 position: 'right', // Выносим шкалу вправо
                 splitLine: { show: false }, // Убираем вторую сетку, чтобы не рябило
@@ -104,7 +103,6 @@ export default function VolumeChart({ data }: { data: any[] }) {
             }
         ],
         series: [
-   
             {
                 name: 'Source',
                 type: 'line',
@@ -124,7 +122,7 @@ export default function VolumeChart({ data }: { data: any[] }) {
                 data: data.map(d => d.destination > 0 ? d.destination : 1e-10),
                 itemStyle: { color: '#d9f163ff' },
                 areaStyle: {
-                    opacity: 0.2, // Увеличим прозрачность для лучшей видимости области
+                    opacity: 0.2,
                     color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
                         { offset: 0, color: 'rgba(217, 241, 99, 0.5)' },
                         { offset: 1, color: 'rgba(217, 241, 99, 0)' }

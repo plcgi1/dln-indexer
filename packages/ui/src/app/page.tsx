@@ -5,6 +5,7 @@ import FilterSidebar from "@/components/FilterSidebar";
 import { Suspense } from "react";
 import TopNavigation from '@/components/TopNavigation';
 import StatsGrid from '@/components/StatsGrid';
+import { EVENT_TYPE_LABELS } from '@/lib/event-labels';
 
 // включение SSR для этой страницы
 export const dynamic = 'force-dynamic'
@@ -15,10 +16,10 @@ export function getPrismaWhere(rawParams: any) {
     const params = result.success ? result.data : FilterSchema.parse({});
 
     let startDate = new Date();
-    const endDate = params.dateTo ? new Date(params.dateTo) : new Date();
+    let endDate: Date = params.dateTo ? new Date(`${params.dateTo}T23:59:59`) : new Date();
 
     if (params.range === 'custom' && params.dateFrom) {
-        startDate = new Date(params.dateFrom);
+        startDate = new Date(`${params.dateFrom}T00:00:00`);
     } else {
         const offsets: Record<string, number> = {
             '24h': 24 * 60 * 60 * 1000,
@@ -34,8 +35,8 @@ export function getPrismaWhere(rawParams: any) {
             gte: startDate,
             lte: endDate,
         },
-        trnEventType: {
-            in: params.types, // Zod уже превратил строку в массив ['SOURCE', 'DESTINATION']
+        eventName: {
+            in: params.eventName,
         },
     };
 }
@@ -52,7 +53,7 @@ export default async function Page({ searchParams }: {
         orderBy: { trnDate: 'asc' }
     })
     const currentRange = resolvedSearchParams.range || '24h';
-
+    
     // Группировка данных (логика из предыдущего шага)
     const formattedData = stats.reduce((acc: any, curr: any) => {
         const date = new Date(curr.trnDate);
@@ -75,16 +76,15 @@ export default async function Page({ searchParams }: {
         // Если результат Number() — NaN, берем 0
         const safeVal = isNaN(val) ? 0 : val;
 
-        if (curr.trnEventType === 'SOURCE') {
+        if (curr.eventName === EVENT_TYPE_LABELS.OrderCreated) {
             acc[timeKey].source += safeVal;
-        } else if (curr.trnEventType === 'DESTINATION') {
-            val
+        } else if (curr.eventName === EVENT_TYPE_LABELS.OrderFulfilled) {
             acc[timeKey].destination += safeVal;
         }
 
         return acc;
     }, {})
-
+    // console.info('formattedData', formattedData);
     const chartData = Object.values(formattedData)
     const totalVolume = chartData.reduce((sum: number, item: any) => {
         // Используем || 0, чтобы заменить NaN на ноль
@@ -114,15 +114,11 @@ export default async function Page({ searchParams }: {
                     <div className="lg:col-span-3 space-y-6">
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                             <div className="flex justify-between items-center mb-6">
-                                <h3 className="font-bold text-lg text-slate-800">Volume Dynamics (per minute)</h3>
-                                <div className="flex gap-2">
-                                   <span
-                                       className="flex items-center gap-1.5 text-xs font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded-md">
-                                     <span className="w-2 h-2 bg-indigo-500 rounded-full"></span> Source
-                                   </span>
-                                </div>
+                                <h3 className="font-bold text-lg text-slate-800">
+                                    Volume Dynamics
+                                </h3>
                             </div>
-                            <div className="h-[450px] w-full">
+                            <div className="w-full">
                                 <DashboardWrapper initialData={chartData}/>
                             </div>
                         </div>

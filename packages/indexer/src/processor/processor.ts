@@ -1,12 +1,13 @@
 import { Task } from '@prisma/client';
 import { prisma } from '../db';
 import pino from 'pino';
+import { Counter, Gauge } from 'prom-client';
 import { ETaskStatus, IWorker } from 'dlni-shared/types/worker';
 import { delayTimeout } from 'dlni-shared/utils/time';
 import { DlnTrnDataExtractor } from './data-extractor';
 import { TransactionResponse } from '@solana/web3.js';
 import { PriceService } from './price-service';
-import { AppConfig } from '@config';
+import { AppConfig } from '../config';
 
 export class DlnProcessor implements IWorker {
   private readonly logger: pino.Logger;
@@ -18,12 +19,34 @@ export class DlnProcessor implements IWorker {
   private readonly errorDelayMs: number;
   private readonly activeDelayMs: number;
   private workingTasks: number[] = [];
+  public readonly metrics: {
+    txCounter: Counter;
+    lastSlotGauge: Gauge;
+    pendingTasksGauge: Gauge; // Дополнительная метрика для очереди
+  };
 
   constructor(options: AppConfig, dataExtractor: DlnTrnDataExtractor) {
     this.logger = pino({
       name: DlnProcessor.name,
       ...options.logging,
     });
+    this.metrics = {
+      txCounter: new Counter({
+        name: 'processor_processed_tasks_total',
+        help: 'Total number of tasks processed by the processor',
+        labelNames: ['status', 'type'],
+      }),
+      lastSlotGauge: new Gauge({
+        name: 'processor_last_processed_slot',
+        help: 'Last task id processed by the processor',
+        labelNames: ['task'],
+      }),
+      pendingTasksGauge: new Gauge({
+        name: 'processor_pending_tasks_count',
+        help: 'Number of tasks currently in PENDING status',
+      }),
+    };
+
     const config = options.processor;
     this.dataExtractor = dataExtractor;
 
@@ -43,6 +66,8 @@ export class DlnProcessor implements IWorker {
           where: { status: ETaskStatus.PENDING },
         });
         this.logger.info({ pendingCount }, 'Pending tasks count');
+        this.metrics.pendingTasksGauge.set(pendingCount);
+
         const tasks = await this.claimTasks();
 
         this.logger.info({ count: tasks.length }, 'Start tasks');
@@ -161,6 +186,7 @@ export class DlnProcessor implements IWorker {
         trnDate: task.blockTime,
         signature: task.signature,
         trnEventType: task.contractType,
+        eventName: task.eventName,
         usdValue,
         usdPrice: price,
       },
@@ -210,13 +236,17 @@ export class DlnProcessor implements IWorker {
 
         await this.updateCheckpoint(task.id, tx);
 
+        this.metrics.lastSlotGauge.set({ task: task.id }, task.id);
+
         await tx.task.update({
           where: { id: task.id },
           data: { status: ETaskStatus.READY },
         });
+        this.metrics.txCounter.inc({ status: 'success', type: task.contractType });
       });
     } catch (err: any) {
       this.logger.error({ err }, 'Failed to parse deBridge transaction');
+      this.metrics.txCounter.inc({ status: 'error', type: task.contractType });
       await this.finalizeTask(task.id, ETaskStatus.ERROR, err.message);
     }
   }
