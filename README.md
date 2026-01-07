@@ -20,6 +20,7 @@ The system is built as a **Yarn Workspaces** monorepo running on **Node.js >=22*
 ### Sequense diagram
 
 ![Sequense diagram](./docs/indexer-flow.png)
+
 ---
 
 ## 💰 USD Pricing & Caching Strategy
@@ -153,6 +154,7 @@ yarn run fill-orderfullfilled
 
 * **Prometheus**: Scrapes metrics from the Indexer and Processor (e.g., `processor_processed_tasks_total`, `indexer_last_slot`)
 
+---
 
 ## Pluses and minuses of the solution
 
@@ -171,8 +173,10 @@ yarn run fill-orderfullfilled
 
 ## 🚀 Future Improvements & Scalability
 
+> **Note:** The possibilities are endless, and we're excited to grow this list! But first, let’s sync on who we’re building for and what success looks like for the service.
+
 * **Transition to Geyser Plugin (gRPC Streaming)**
-* Replace the current RPC-based polling (`getSignaturesForAddress`) with a **Yellowstone gRPC** stream.
+    * Replace the current RPC-based polling (`getSignaturesForAddress`) with a **Yellowstone gRPC** stream.
     * **Why:** This will reduce data ingestion latency from seconds to milliseconds and eliminate the overhead of repetitive HTTP requests.
     * **Reliability:** Streaming ensures 100% data capture even during high network congestion, where standard RPC nodes might drop or rate-limit requests.
 
@@ -206,5 +210,3 @@ yarn run fill-orderfullfilled
     * Wrap all components with docker-compose for CI/CD deploying
 
 ---
-
-> **Note:** The possibilities are endless, and we're excited to grow this list! But first, let’s sync on who we’re building for and what success looks like for the service.
