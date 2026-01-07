@@ -55,7 +55,7 @@ The `PriceService` handles the conversion of transaction amounts into USD using 
 
 ### Setup postgres
 
-connect to DB - one time
+connect to DB - once
 ```
 -- in psql console
 CREATE USER indexer WITH PASSWORD '123test';
@@ -74,8 +74,8 @@ xz -dc dump.sql.xz | psql <YOUR-PSQL-OPTIONS-TO-OUR-DATABASE>
 
 ### Nodejs instructions
 
-1. In root of project - ```yarn install```
-2. In packages/shared
+1. In root of project once - ```yarn install```
+2. In packages/shared - once
 ```
 # fill .env file with value
 DATABASE_URL=postgresql://<user>:<pswd>@<HOST>:<PORT>/<DBNAME>
@@ -103,7 +103,7 @@ yarn run processor
 ```
 # fill .env file with values
 DATABASE_URL=postgresql://<user>:<pswd>@<HOST>:<PORT>/<DBNAME>
-
+# run nextjs instance on http://localhost:3000
 yarn run dev
 ```
 
@@ -190,7 +190,8 @@ yarn run fill-orderfullfilled
 * **Migration to NestJS for Backend Services**
     * Move statistics retrieval from Next.js Server Actions to a dedicated **NestJS** microservice.
     * **Why:** To achieve better separation of concerns and utilize NestJS's powerful dependency injection and modularity.
-    * **API Documentation:** Implement **Swagger (OpenAPI)** for the new REST API to provide a clear, interactive contract for frontend developers and external integrators.
+    * **API Documentation:** 
+    Implement **Swagger (OpenAPI)** for the new REST API to provide a clear, interactive contract for frontend developers and external integrators.
 
 
 * **Automated Data Retention Policy (Pruning)**
