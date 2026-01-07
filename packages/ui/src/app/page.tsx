@@ -50,7 +50,8 @@ export default async function Page({ searchParams }: {
 
     const stats = await prisma.trnLog.findMany({
         where,
-        orderBy: { trnDate: 'asc' }
+        orderBy: { trnDate: 'asc' },
+        take: 50000,
     })
     const currentRange = resolvedSearchParams.range || '24h';
     

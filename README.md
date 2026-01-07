@@ -38,6 +38,7 @@ The `PriceService` handles the conversion of transaction amounts into USD using 
 * **Runtime:** Node.js / TypeScript (>=v22) / yarn monorepo
 * **Database:** Postgres
 * **Dashboard:** [React / Next.js]
+* **Monitoring:** [Prometeus] - optional
 
 ---
 
@@ -59,7 +60,8 @@ GRANT ALL PRIVILEGES ON DATABASE indexer_db to indexer;
 
 If you want to see 50000 prepared records on dashboard - you can:
 ```
-plsql <YOUR-PSQL-OPTIONS-TO-OUR-DATABASE> < db/dump.psql
+xz -dc dump.sql.xz | psql <YOUR-PSQL-OPTIONS-TO-OUR-DATABASE>
+
 ```
 
 ### Nodejs instructions
@@ -67,11 +69,23 @@ plsql <YOUR-PSQL-OPTIONS-TO-OUR-DATABASE> < db/dump.psql
 1. In root of project - ```yarn install```
 2. In packages/shared
 ```
+# fill .env file with value
+DATABASE_URL=postgresql://<user>:<pswd>@<HOST>:<PORT>/<DBNAME>
+
+# sync prisma schema to database
 yarn run prisma-push
 yarn run prisma-gen
 ```
 3. In packages/indexer
 ```
+# fill .env file with values
+DATABASE_URL=postgresql://<user>:<pswd>@<HOST>:<PORT>/<DBNAME>
+JUPITER_API_KEY=<for https://api.jup.ag/price/v3 service>
+INDEXER_RPC_URL=https://mainnet.helius-rpc.com/?api-key=<>
+INDEXER_DLN_SOURCE_ADDRESS=src5qyZHqTqecJV4aY6Cb6zDZLMDzrDKKezs22MPHr4
+INDEXER_DLN_DESTINATION_ADDRESS=dst5MGcFPoBeREFAA5E3tU5ij8m5uVYwkzkSAbsLbNo
+INDEXER_PAGE_LIMIT=100
+
 yarn run indexer
 # in separated console
 yarn run processor
@@ -79,6 +93,9 @@ yarn run processor
 
 4. In packages/ui
 ```
+# fill .env file with values
+DATABASE_URL=postgresql://<user>:<pswd>@<HOST>:<PORT>/<DBNAME>
+
 yarn run dev
 ```
 
@@ -160,13 +177,13 @@ yarn run fill-orderfullfilled
 
 
 * **Migration to NestJS for Backend Services**
-* Move statistics retrieval from Next.js Server Actions to a dedicated **NestJS** microservice.
+    * Move statistics retrieval from Next.js Server Actions to a dedicated **NestJS** microservice.
     * **Why:** To achieve better separation of concerns and utilize NestJS's powerful dependency injection and modularity.
     * **API Documentation:** Implement **Swagger (OpenAPI)** for the new REST API to provide a clear, interactive contract for frontend developers and external integrators.
 
 
 * **Automated Data Retention Policy (Pruning)**
-* Implement a scheduled cleanup worker (using Cron jobs) to remove old "READY" or "ERROR" tasks from the `Task` table.
+    * Implement a scheduled cleanup worker (using Cron jobs) to remove old "READY" or "ERROR" tasks from the `Task` table.
     * **Why:** As the indexer grows, raw transaction logs become obsolete once they are processed into financial records. Pruning ensures the database remains lean, keeps indexes performant, and reduces storage costs.
 
 
