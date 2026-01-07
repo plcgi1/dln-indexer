@@ -60,6 +60,7 @@ GRANT ALL PRIVILEGES ON DATABASE indexer_db to indexer;
 
 If you want to see 50000 prepared records on dashboard - you can:
 ```
+
 xz -dc dump.sql.xz | psql <YOUR-PSQL-OPTIONS-TO-OUR-DATABASE>
 
 ```
@@ -153,22 +154,22 @@ yarn run fill-orderfullfilled
 * **Prometheus**: Scrapes metrics from the Indexer and Processor (e.g., `processor_processed_tasks_total`, `indexer_last_slot`)
 
 
-### Pluses and minuses of the solution
+## Pluses and minuses of the solution
 
-#### Pluses
+### Pluses
 
 1. **Separation of Concerns:** Parsing, Storage and visualisation divided to independent modules
 2. **Restart-safe:** Indexer and processor store last step in database and can start from last time
 3. **Reproducible:** With the same RPC and IDL, any developer will receive an identical data set.
 4. **One point of trust:** All configuration in one place - packages/indexer/src/config.
 
-#### Minuses
+### Minuses
 1. **Periodical RPC polling** - not for realtime(see **Improvement list**)
 2. **nextjs usage for dashboard** - no API methods to get statistics (see **Improvement list**)
 
 ---
 
-### 🚀 Future Improvements & Scalability
+## 🚀 Future Improvements & Scalability
 
 * **Transition to Geyser Plugin (gRPC Streaming)**
 * Replace the current RPC-based polling (`getSignaturesForAddress`) with a **Yellowstone gRPC** stream.
