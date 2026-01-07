@@ -7,7 +7,7 @@ import TopNavigation from '@/components/TopNavigation';
 import StatsGrid from '@/components/StatsGrid';
 import { EVENT_TYPE_LABELS } from '@/lib/event-labels';
 
-// включение SSR для этой страницы
+// turn on SSR for the page
 export const dynamic = 'force-dynamic'
 
 export function getPrismaWhere(rawParams: any) {
@@ -54,16 +54,16 @@ export default async function Page({ searchParams }: {
     })
     const currentRange = resolvedSearchParams.range || '24h';
     
-    // Группировка данных (логика из предыдущего шага)
+    // Group data
     const formattedData = stats.reduce((acc: any, curr: any) => {
         const date = new Date(curr.trnDate);
 
-        // Ключ группировки зависит от диапазона
+        // Group key depends from period
         let timeKey: string;
         if (currentRange === '24h') {
             timeKey = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         } else {
-            // Для 3д, 7д и т.д. группируем по ДНЯМ или ЧАСАМ
+            // For 3d, 7d etc. group by DAYS OR HOURS
             timeKey = date.toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit' });
         }
 
@@ -73,7 +73,7 @@ export default async function Page({ searchParams }: {
 
         const val = Number(curr.usdValue);
 
-        // Если результат Number() — NaN, берем 0
+        // If result Number() — NaN, use 0
         const safeVal = isNaN(val) ? 0 : val;
 
         if (curr.eventName === EVENT_TYPE_LABELS.OrderCreated) {
@@ -84,10 +84,9 @@ export default async function Page({ searchParams }: {
 
         return acc;
     }, {})
-    // console.info('formattedData', formattedData);
     const chartData = Object.values(formattedData)
     const totalVolume = chartData.reduce((sum: number, item: any) => {
-        // Используем || 0, чтобы заменить NaN на ноль
+        // Use || 0, to change NaN to 0
         const source = Number(item.source) || 0;
         const dest = Number(item.destination) || 0;
         return sum + source + dest;

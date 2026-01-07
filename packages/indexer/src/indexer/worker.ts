@@ -6,7 +6,7 @@ import { delayTimeout } from 'dlni-shared/utils/time';
 import { prisma } from '../db';
 import { AppConfig } from '../config';
 import { Registry, Counter, Gauge } from 'prom-client';
-import { EventTypes } from 'dlni-shared/utils/event-labels';
+import { EventTypes } from 'dlni-shared/types/event';
 
 export enum ESignaturesPeriod {
   before = 'before',

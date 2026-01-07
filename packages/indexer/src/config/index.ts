@@ -30,6 +30,7 @@ export interface AppConfig {
   };
   pricer: {
     apiKey: string;
+    ttlCacheMs: number;
   };
 }
 
@@ -79,6 +80,7 @@ const all: AppConfig = {
 
   pricer: {
     apiKey: env.JUPITER_API_KEY!,
+    ttlCacheMs: 15 * 60 * 1000,
   },
 };
 

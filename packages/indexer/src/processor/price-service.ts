@@ -16,7 +16,7 @@ export type PriceApiResponse = Record<string, TokenPrice>;
 export class PriceService {
   private readonly JUPITER_API = 'https://api.jup.ag/price/v3';
   private readonly JUPITER_API_KEY = config.pricer.apiKey;
-  private readonly CACHE_TTL_MS = 15 * 60 * 1000;
+  private readonly CACHE_TTL_MS = config.pricer.ttlCacheMs;
   private readonly logger: pino.Logger = pino({ name: 'PriceService' });
 
   async getPrice(tokenAddress: string, decimals: number): Promise<Big> {
@@ -30,7 +30,7 @@ export class PriceService {
   }
 
   /**
-   * Получает точную цену токена через fetch с API-ключом
+   * Fetches the exact price of a token via fetch with API key and saves it to the database
    */
   private async fetchAndSavePrice(tokenAddress: string, decimals: number): Promise<Big> {
     const url = `${this.JUPITER_API}?ids=${tokenAddress}`;
@@ -72,7 +72,7 @@ export class PriceService {
   }
 
   /**
-   * Точный расчет объема сделки
+   * Exact calculation of the trade volume in USD using Big.js
    */
   calculateVolume(amountRaw: string | bigint, decimals: number, priceUsd: Big): string {
     if (priceUsd.eq(0)) return '0';
@@ -80,7 +80,7 @@ export class PriceService {
     const amount = new Big(amountRaw.toString());
     const divisor = new Big(10).pow(decimals);
 
-    // Точный расчет: (amount / 10^decimals) * price
+    // (amount / 10^decimals) * price
     const result = amount.div(divisor).mul(priceUsd).toFixed(9);
     return result;
   }

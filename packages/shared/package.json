@@ -13,9 +13,6 @@
     "prisma-reset": "npx prisma migrate reset",
     "prisma-genmigrate": "npx prisma migrate dev --create-only",
     "prisma-push": "npx prisma db push",
-    "prisma-migrate": "npx prisma migrate dev --name init",
-    "prisma-deploy": "npx prisma migrate deploy",
-    "prisma-studio": "npx prisma studio",
     "build": "tsc && tsc-alias"
   },
   "exports": {

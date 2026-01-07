@@ -7,7 +7,7 @@ actor "Solana Network" as Solana
 
 box "Indexer Service" #E3F2FD
     participant "DlnIndexer" as Indexer
-    participant "PostgreSQL (Tasks)" as DB_Tasks
+    participant "PostgreSQL (Task)" as DB_Tasks
 end box
 
 box "Processor Service" #F1F8E9
@@ -15,7 +15,7 @@ box "Processor Service" #F1F8E9
     participant "DataExtractor" as Extractor
     participant "PriceService" as Price
     participant "Jupiter V3 API" as Jupiter
-    participant "PostgreSQL (Logs)" as DB_Logs
+    participant "PostgreSQL (TrnLog)" as DB_Logs
 end box
 
 box "Frontend & Ops" #F3E5F5
@@ -23,28 +23,28 @@ box "Frontend & Ops" #F3E5F5
     participant "Prometheus" as Prom
 end box
 
-== 1. Этап Индексации (Сбор данных) ==
+== 1. Indexing stage (Collect data) ==
 
-Indexer -> Solana : Get Signatures (Create/Fulfill)
-Solana --> Indexer : Transaction Logs & Data
-Indexer -> DB_Tasks : Create Task (Status: PENDING, Raw Data)
-Indexer -> Prom : Inc(tx_saved_total)
+Indexer -> Solana++ : Get Signatures
+Solana --> Indexer-- : Transaction Logs & Data
+Indexer -> DB_Tasks++ : Filter OrderCreated/OrderFulfilled and Create Task (Status: PENDING, Raw Data)
+Indexer -> Prom : Inc(indexer_tx_saved_total)
 
-== 2. Этап Обработки (Процессинг и Цены) ==
+== 2. Processing stage (Processing and Prices) ==
 
 Processor -> DB_Tasks : Fetch PENDING tasks
 Processor -> Extractor : Parse Logs (Extract OrderId, Token, Amount)
 Extractor --> Processor : Decoded Data
 
-    group Расчет стоимости (Кеширование)
+    group Price calculation and caching
         Processor -> Price : GetPrice(TokenAddress)
         Price -> DB_Logs : Check cached price (TTL 15 min)
-        
-        alt Кэш просрочен или отсутствует
+
+        alt Cache expired or missing
             Price -> Jupiter : Fetch Price (x-api-key)
             Jupiter --> Price : USD Price Data
             Price -> DB_Logs : Upsert TokenPrice (Cache Update)
-        else Кэш валиден
+        else Cache is valid
             DB_Logs --> Price : Return cached price
         end
         Price --> Processor : Big.js Price
@@ -55,7 +55,7 @@ Processor -> DB_Logs : Save Final Financial Log (OrderId, USD Value)
 Processor -> DB_Tasks : Update Task (Status: READY)
 Processor -> Prom : Inc(processor_processed_tasks_total)
 
-== 3. Визуализация ==
+== 3. Visualization ==
 
 UI -> DB_Logs : Query with Filters (Date Range, Event Types)
 DB_Logs --> UI : Financial Stats & Chart Data

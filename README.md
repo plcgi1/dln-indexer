@@ -1,21 +1,25 @@
 # deBridge DLN Indexer & Monitoring Dashboard
 
-This project is a high-performance monorepo designed to index, process, and visualize **deBridge DLN** (Destination Liquidity Network) cross-chain transactions on Solana. It tracks `CreateOrder` (Source) and `FulfillOrder` (Destination) events, calculates financial data, and exposes real-time metrics for monitoring.
+This project is a high-performance monorepo designed to index, process, and visualize **deBridge DLN** (Destination Liquidity Network) cross-chain transactions on Solana. It tracks `OrderCreated` (Source) and `OrderFulfilled` (Destination) events, calculates financial data, and exposes real-time metrics for monitoring.
 
 ---
 
-## 🏗 Architecture Overview
+## Architecture Overview
 
-The system is built as a **Yarn Workspaces** monorepo running on **Node.js 22**:
+The system is built as a **Yarn Workspaces** monorepo running on **Node.js >=22**:
 
 * **`packages/shared`**: The core domain layer containing the Prisma schema, shared TypeScript types, and database utilities.
 * **`packages/indexer`**:
-* **Indexer Service**: Scans the Solana blockchain for specific DLN contract interactions and saves raw transaction data.
-* **Processor Service**: Extracts trade details from raw logs and calculates USD volume.
+    All services ready to give prometeus metrics
+    * **Indexer Service**: Scans the Solana blockchain for specific DLN contract interactions and saves raw transaction data.
+    * **Processor Service**: Extracts trade details from raw logs and calculates USD volume.
 
 
 * **`packages/ui`**: A **Next.js 15+** dashboard for visualizing processed data and system health.
 
+### Sequense diagram
+
+![Sequense diagram](./docs/indexer-flow.png)
 ---
 
 ## 💰 USD Pricing & Caching Strategy
@@ -29,137 +33,160 @@ The `PriceService` handles the conversion of transaction amounts into USD using 
 
 ---
 
-## 📦 Local Development Commands
+## Technical stack
+
+* **Runtime:** Node.js / TypeScript (>=v22) / yarn monorepo
+* **Database:** Postgres
+* **Dashboard:** [React / Next.js]
+
+---
+
+## Launch instructions
+
+### Setup postgres
+
+Example: https://github.com/snowplow/snowplow/wiki/Setting-up-PostgreSQL#ec2
+
+connect to DB - one time
+```
+-- in psql console
+CREATE USER indexer WITH PASSWORD '123test';
+ALTER USER indexer WITH SUPERUSER;
+ALTER ROLE indexer CREATEROLE CREATEDB;
+CREATE DATABASE indexer_db;
+GRANT ALL PRIVILEGES ON DATABASE indexer_db to indexer;
+```
+
+If you want to see 50000 prepared records on dashboard - you can:
+```
+plsql <YOUR-PSQL-OPTIONS-TO-OUR-DATABASE> < db/dump.psql
+```
+
+### Nodejs instructions
+
+1. In root of project - ```yarn install```
+2. In packages/shared
+```
+yarn run prisma-push
+yarn run prisma-gen
+```
+3. In packages/indexer
+```
+yarn run indexer
+# in separated console
+yarn run processor
+```
+
+4. In packages/ui
+```
+yarn run dev
+```
+
+### Fill database table "Task" - if you need latest transactions from solana
+
+ - Fill with script - about 60 minutes - packages/indexer
+
+```
+## for both of them - limit 50000 transactions
+# in separated console
+yarn run fill-ordercreated
+# in separated console
+yarn run fill-orderfullfilled
+
+```
+----
+
+
+## Local Development Commands
 
 ### `packages/shared`
 
 * `yarn run prisma-gen`: Generates the Prisma Client.
 * `yarn run prisma-push`: Syncs the DB structure without migrations.
+* `yarn run prisma-reset`: Reset DB schema
+* `yarn run prisma-genmigrate`: Generates migration for prisma
 * `yarn build`: Compiles the shared package.
+* `yarn run lint`: Linting
+* `yarn run format`: Pretty code
+* `yarn run build`: Build
 
 ### `packages/indexer`
 
+* `yarn run lint`: Linting
+* `yarn run format`: Pretty code
 * `yarn run indexer`: Launches the Solana blockchain scanner.
 * `yarn run processor`: Launches the data extraction and pricing service.
 * `yarn build`: Compiles using `tsc-alias` to resolve path mappings.
 * `yarn test`: Runs the test suite (clears the `prom-client` registry before each test).
+* `yarn run fill-ordercreated`: One time script - fill table "Task" with 25000 records for events "OrderCreated"
+* `yarn run fill-orderfullfilled`: One time script - fill table "Task" with 25000 records for events "OrderFulfilled"
 
 ### `packages/ui`
 
+* `yarn run lint`: Linting
+* `yarn run format`: Pretty code
 * `yarn run dev`: Starts Next.js in development mode.
-* `yarn run build && yarn run start`: Production build and launch.
+* `yarn run build`: Production build.
+* `yarn run start`: Launch production
 
 ---
 
-## 📊 Monitoring
+## Monitoring
 
 * **Prometheus**: Scrapes metrics from the Indexer and Processor (e.g., `processor_processed_tasks_total`, `indexer_last_slot`)
 
-## вариант от ИИ
 
-# DLN Order Indexer (Solana)
+### Pluses and minuses of the solution
 
-Производственное решение для индексации и агрегации событий DLN (deBridge Liquidity Network).
+#### Pluses
 
-## 🚀 Архитектурные решения
+1. **Separation of Concerns:** Parsing, Storage and visualisation divided to independent modules
+2. **Restart-safe:** Indexer and processor store last step in database and can start from last time
+3. **Reproducible:** With the same RPC and IDL, any developer will receive an identical data set.
+4. **One point of trust:** All configuration in one place - packages/indexer/src/config.
 
-
-
-### 3. Обработка кроссчейн данных
-
-Поскольку DLN — межсетевой протокол, парсер учитывает:
-
-
-## 🛠 Технологический стек
-
-* **Runtime:** Node.js / TypeScript
-* **Parser:** Borsh, js-sha256, keccak256
-* **Database:** [Твой выбор]
-* **Dashboard:** [React / Grafana / Next.js]
-
-## 📋 Инструкция по запуску
-
-1. `npm install`
-2. Настройка окружения в `.env` (RPC URL, DB_URL)
-3. `npm run migrate` — создание таблиц
-4. `npm run index` — запуск процесса сбора 50,000 ордеров
-5. `npm run dashboard` — запуск визуализации
+#### Minuses
+1. **Periodical RPC polling** - not for realtime(see **Improvement list**)
+2. **nextjs usage for dashboard** - no API methods to get statistics (see **Improvement list**)
 
 ---
 
-### Почему это решение "Ideal"?
+### 🚀 Future Improvements & Scalability
 
-1. **Separation of Concerns:** Парсинг, хранение и визуализация разделены на независимые модули.
-2. **Restart-safe:** Индексатор сохраняет `last_signature` и продолжает работу с места остановки при перезапуске.
-3. **Reproducible:** При наличии того же RPC и IDL, любой разработчик получит идентичный набор данных.
+* **Transition to Geyser Plugin (gRPC Streaming)**
+* Replace the current RPC-based polling (`getSignaturesForAddress`) with a **Yellowstone gRPC** stream.
+    * **Why:** This will reduce data ingestion latency from seconds to milliseconds and eliminate the overhead of repetitive HTTP requests.
+    * **Reliability:** Streaming ensures 100% data capture even during high network congestion, where standard RPC nodes might drop or rate-limit requests.
+
+
+* **Migration to NestJS for Backend Services**
+* Move statistics retrieval from Next.js Server Actions to a dedicated **NestJS** microservice.
+    * **Why:** To achieve better separation of concerns and utilize NestJS's powerful dependency injection and modularity.
+    * **API Documentation:** Implement **Swagger (OpenAPI)** for the new REST API to provide a clear, interactive contract for frontend developers and external integrators.
+
+
+* **Automated Data Retention Policy (Pruning)**
+* Implement a scheduled cleanup worker (using Cron jobs) to remove old "READY" or "ERROR" tasks from the `Task` table.
+    * **Why:** As the indexer grows, raw transaction logs become obsolete once they are processed into financial records. Pruning ensures the database remains lean, keeps indexes performant, and reduces storage costs.
+
+
+* **Hybrid Data Ingestion**
+    * Implement a dual-layer strategy: use **Geyser** for real-time "head-of-chain" processing and the current **RPC Indexer** as a fallback/checker to fill potential gaps during network restarts.
+
+
+* **Advanced Analytics Engine**
+    * Extend the UI to include deeper insights such as "Volume by Token Pair", "Protocol Fee Tracking", and "User Retention Metrics" using specialized PostgreSQL time-series indexes.
+
+* **Centralized Error Tracking with Sentry**
+    * Integrate Sentry SDK across all microservices (Indexer, Processor, and UI).
+
+    * **Why**: To receive real-time alerts on critical failures, such as RPC connection drops, Jupiter API timeouts, or database deadlocks.
+
+    * **Contextual Debugging:** Utilize Sentry's breadcrumbs and tags (e.g., orderId, tokenAddress) to pinpoint exactly why a specific transaction failed to process.
+
+* **Dockerize all components**
+    * Wrap all components with docker-compose for CI/CD deploying
 
 ---
 
-### Советы по "Improvement list" (Опционально):
-
-В конце README добавь раздел *"Что бы я улучшил, будь у меня больше времени"*:
-
-* Использование **Geyser Plugin** для прямой трансляции данных из Solana Node в БД (минуя RPC).
-* Добавление **OpenTelemetry** для мониторинга здоровья индексатора.
-* Покрытие парсера **Property-based тестами** для проверки экстремально больших сумм и редких типов адресов.
-
-С такой структурой ты показываешь, что не просто "сделал задачу", а спроектировал систему. Готов переходить к реализации дашборда или агрегации цен?
-
-## накачка базы в 25000 для OrderCreated и FullfillOrder
-
-```
-npm run fill-ordercreated    
-npm run fill-orderfullfilled    
-```
-
-## Local setup
-
-1. database postgres
-
-    https://github.com/snowplow/snowplow/wiki/Setting-up-PostgreSQL#ec2
-
-    connect to DB
-    ```
-        -- init.sql
-        CREATE USER indexer WITH PASSWORD '123test';
-        ALTER USER indexer WITH SUPERUSER;
-        ALTER ROLE indexer CREATEROLE CREATEDB;
-        
-        CREATE DATABASE indexer_db;
-        GRANT ALL PRIVILEGES ON DATABASE indexer_db to indexer;
-        ...
-        
-        psql -U posgres postgres < ./init.sql 
-    ```
-    
-```
-src/
-├── common/
-│   ├── db/
-│   │   ├── database.ts
-│   │   └── models/          # Или schema.prisma, если используешь Prisma
-│   ├── abis/                # Файлы IDL (JSON) для deBridge программ
-│   │   └── dln_solana.json
-│   ├── types/               # Общие интерфейсы для ордеров и эвентов
-│   └── utils/
-│       └── borsh-parser.ts  # Вынесенная логика низкоуровневого декодирования
-│
-├── indexer/
-│   ├── transport/           # Логика работы с RPC/Helius (ретраи, пагинация)
-│   └── indexer.ts           # Координатор: Fetch -> Save raw
-│
-├── processor/
-│   ├── decoders/            # Специфичные парсеры для OrderCreated/OrderFulfilled
-│   └── processor.ts         # Координатор: Load raw -> Decode -> Upsert
-│
-├── volumer/                 # (Новый воркер) Расчет цен и агрегация
-│   ├── price-provider/      # Интеграция с внешними API (CoinGecko/Birdeye)
-│   └── volumer.ts
-│
-├── ui/                 # NestJS App
-
-```
-
-### подсказки для объяснения
-
-Для контракта solana хранит 100000 записей - иначе нужно использовать специализированные сервсиы
+> **Note:** The possibilities are endless, and we're excited to grow this list! But first, let’s sync on who we’re building for and what success looks like for the service.

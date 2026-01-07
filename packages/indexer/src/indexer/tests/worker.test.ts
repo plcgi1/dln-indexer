@@ -13,7 +13,7 @@ import { prisma as mockPrisma } from '../../db';
 import { mockReset } from 'jest-mock-extended';
 import { AppConfig } from '../../config';
 import { EContractType } from 'dlni-shared/types/contract';
-import { EventTypes } from 'dlni-shared/utils/event-labels';
+import { EventTypes } from 'dlni-shared/types/event';
 
 describe('DlnIndexer', () => {
   let indexer: DlnIndexer;
@@ -41,6 +41,7 @@ describe('DlnIndexer', () => {
 
     pricer: {
       apiKey: 'JUPITER_API_KEY',
+      ttlCacheMs: 15 * 60 * 1000,
     },
   };
 

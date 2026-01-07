@@ -18,7 +18,6 @@ export class DlnTrnDataExtractor {
     if (!balanceData) return null;
 
     return {
-      // Если это SRC, и мы нашли ID в бинарном логе, он совпадет с DST
       orderId: orderId || 'NOT_FOUND',
       tokenAddress: balanceData.mint,
       decimals: balanceData.decimals,
@@ -29,8 +28,7 @@ export class DlnTrnDataExtractor {
 
   private getOrderId(tx: any): string {
     const logs = tx.meta?.logMessages || [];
-    // ищем для DST - "Program log: Order Id: 0x..."
-
+    // Searching for DST - "Program log: Order Id: 0x..."
     const orderIdLog = logs.find((log: string) => log.match(/Order\s?Id:\s?(0x)?([a-fA-F0-9]{64})/i));
     if (orderIdLog) {
       const orderIdMatch = orderIdLog.match(/Order\s?Id:\s?(0x)?([a-fA-F0-9]{64})/i);
@@ -48,17 +46,16 @@ export class DlnTrnDataExtractor {
 
     if (buffer.length < 32) return '';
     const orderIdBytes = buffer.subarray(0, 32);
-    const result = Buffer.from(orderIdBytes).toString('hex'); // 64-символьная hex строка
+    const result = Buffer.from(orderIdBytes).toString('hex'); // 64-symbol hex string
     return result.toLowerCase();
   }
 
   /**
-   * Анализирует изменения балансов, чтобы найти основной токен и сумму транзакции
+   * Analyzes balance changes to find the main token and transaction amount
    */
   private extractBalanceChange(tx: any) {
     const { preTokenBalances, postTokenBalances, preBalances, postBalances } = tx.meta || {};
 
-    // Сначала проверяем SPL-токены (USDC, USDT и т.д.)
     if (postTokenBalances?.length > 0) {
       for (const post of postTokenBalances) {
         const pre = preTokenBalances?.find((p: any) => p.accountIndex === post.accountIndex);
@@ -67,7 +64,7 @@ export class DlnTrnDataExtractor {
 
         const diff = postAmt > preAmt ? postAmt - preAmt : preAmt - postAmt;
 
-        // Если баланс изменился значительно (игнорируем пыль)
+        // If balance changed significantly (ignore dust)
         // eslint-disable-next-line max-depth
         if (diff > 0n) {
           return {
@@ -79,18 +76,18 @@ export class DlnTrnDataExtractor {
       }
     }
 
-    // Если токенов нет, проверяем нативный SOL (lamports)
-    // Ищем максимальное изменение баланса (кроме комиссии)
+    // If no tokens, check native SOL (lamports)
+    // Searching for maximum balance change (except fee)
     for (let i = 0; i < postBalances.length; i++) {
       const diff = BigInt(Math.abs(postBalances[i] - preBalances[i]));
       const fee = BigInt(tx.meta.fee || 0);
 
-      // Если изменение больше комиссии — это перевод SOL
+      // If change is greater than fee — it's SOL transfer
       if (diff > fee * 10n) {
         return {
           mint: this.NATIVE_SOL,
           decimals: 9,
-          rawAmount: (diff - (i === 0 ? fee : 0n)).toString(), // вычитаем комиссию, если это плательщик
+          rawAmount: (diff - (i === 0 ? fee : 0n)).toString(), // subtract fee if this is the payer
         };
       }
     }

@@ -51,6 +51,7 @@ model TrnLog {
 
   @@unique([orderId, trnEventType])
   @@index([signature])
+  @@index([trnDate, eventName])
 }
 
 model SyncCheckpoint {

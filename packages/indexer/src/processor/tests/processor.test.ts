@@ -39,6 +39,7 @@ describe('DlnProcessor', () => {
 
     pricer: {
       apiKey: 'JUPITER_API_KEY',
+      ttlCacheMs: 15 * 60 * 1000,
     },
   };
 

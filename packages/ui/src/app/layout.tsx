@@ -10,7 +10,6 @@ export default function RootLayout({
     return (
         <html lang="en">
         <body>
-        {/* Все твои страницы (page.tsx) будут вставляться сюда вместо {children} */}
         {children}
         </body>
         </html>

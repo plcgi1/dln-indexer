@@ -61,7 +61,6 @@ export class DlnProcessor implements IWorker {
 
     while (this.isRunning) {
       try {
-        // Обновляем метрику очереди перед каждым циклом
         const pendingCount = await prisma.task.count({
           where: { status: ETaskStatus.PENDING },
         });
