@@ -38,13 +38,13 @@ The `PriceService` handles the conversion of transaction amounts into USD using 
 
 * **indexer + processor**
     * **Runtime:** Node.js(>=v22) / TypeScript / yarn monorepo
-    * **Database:** Postgres
+    * **Database:** Postgres + Prisma ORM
     * **Monitoring:** [Prometeus] - optional
 
 * **Dashboard:** [React / Next.js]
     * **Framework:** Next.js (App Router)
     * **Visualization:** Apache ECharts (via `echarts-for-react`)
-    * **Database:** Prisma ORM
+    * **Database:** Postgres + Prisma ORM
     * **Validation:** Zod (for URL search parameters)
     * **Styling:** Tailwind CSS
 
