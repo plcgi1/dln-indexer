@@ -196,8 +196,17 @@ yarn run fill-orderfullfilled
 
 * **Automated Data Retention Policy (Pruning)**
     * Implement a scheduled cleanup worker (using Cron jobs) to remove old "READY" or "ERROR" tasks from the `Task` table.
+    * Use partitioned tables or scheduled workers to prune obsolete logs, maintaining high database performance.
     * **Why:** As the indexer grows, raw transaction logs become obsolete once they are processed into financial records. Pruning ensures the database remains lean, keeps indexes performant, and reduces storage costs.
 
+* **Resilient Price Discovery for Low-Liquidity Tokens**
+   * Implement a Multi-tier Price Fallback mechanism. If Jupiter API lacks data for a new or low-liquidity token, the system will:
+   1. Attempt to fetch prices directly from on-chain AMM pools (Raydium/Orca).
+   2. Use "Last Known Price" or mark for RETRY_LATER until liquidity is established.
+
+* **High-Concurrency Task Processing (SKIP LOCKED)**
+   * Implement Row-Level Locking using PostgreSQL SELECT ... FOR UPDATE SKIP LOCKED for task fetching.
+   * Impact: This allows scaling to 10+ parallel worker instances without task duplication or "Unique Constraint" errors, ensuring each transaction is processed exactly once.
 
 * **Hybrid Data Ingestion**
     * Implement a dual-layer strategy: use **Geyser** for real-time "head-of-chain" processing and the current **RPC Indexer** as a fallback/checker to fill potential gaps during network restarts.
