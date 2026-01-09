@@ -193,11 +193,22 @@ yarn run fill-orderfullfilled
     * **API Documentation:** 
     Implement **Swagger (OpenAPI)** for the new REST API to provide a clear, interactive contract for frontend developers and external integrators.
 
-
 * **Automated Data Retention Policy (Pruning)**
     * Implement a scheduled cleanup worker (using Cron jobs) to remove old "READY" or "ERROR" tasks from the `Task` table.
     * Use partitioned tables or scheduled workers to prune obsolete logs, maintaining high database performance.
     * **Why:** As the indexer grows, raw transaction logs become obsolete once they are processed into financial records. Pruning ensures the database remains lean, keeps indexes performant, and reduces storage costs.
+
+* **Multi-Provider RPC Health Checks**
+    * Implement a monitoring layer to compare `getSlot` height across multiple RPC providers (e.g., Helius, QuickNode).
+    * **Impact:** Automatically routes traffic away from "laggard" nodes that fall behind the network tip.
+
+* **Scalable RPC Infrastructure (RPC Proxy Layer)**
+    * Implement a specialized RPC Proxy (e.g., Dragonflow or HAProxy) to sit between the indexer and multiple node providers (Helius, QuickNode, etc.).
+    * Features:
+        * Load Balancing: Distributes requests across multiple providers to prevent rate-limiting.
+        * Smart Health Checks: Automatically detects "laggard" nodes (nodes falling behind the network tip) and routes traffic to healthy ones.
+        * Response Caching: Reduces costs and latency by caching identical JSON-RPC calls.
+    * Impact: Ensures 99.9% data availability even if a single RPC provider experiences downtime or congestion.
 
 * **Resilient Price Discovery for Low-Liquidity Tokens**
    * Implement a Multi-tier Price Fallback mechanism. If Jupiter API lacks data for a new or low-liquidity token, the system will:
